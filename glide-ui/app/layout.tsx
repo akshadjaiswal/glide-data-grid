@@ -8,6 +8,9 @@ import { QueryProvider } from '@/lib/query-provider'
 export const metadata: Metadata = {
   title: 'glide-ui',
   description: 'Built with DevStart CLI',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({

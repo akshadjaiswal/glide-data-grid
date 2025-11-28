@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   DataEditor,
   GridCellKind,
   type CustomCell,
   type CustomRenderer,
+  type EditableGridCell,
   getDefaultTheme,
   type GridCell,
   type GridColumn,
@@ -200,6 +201,8 @@ type EmployeeGridProps = {
 }
 
 export function EmployeeGrid({ rows }: EmployeeGridProps) {
+  const [editableRows, setEditableRows] = useState<EmployeeRow[]>(() => [...rows])
+
   const theme = useMemo(() => {
     const base = getDefaultTheme()
     const merged = { ...base, ...gridThemeOverrides }
@@ -231,7 +234,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
       const [col, row] = cell
-      const rowData = rows[row]
+      const rowData = editableRows[row]
 
       if (!rowData) {
         return { kind: GridCellKind.Loading, allowOverlay: false }
@@ -245,7 +248,8 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
             kind: GridCellKind.Uri,
             data: rowData.email,
             displayData: rowData.email,
-            allowOverlay: false,
+            allowOverlay: true,
+            readonly: false,
             hoverEffect: true,
           }
 
@@ -255,6 +259,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
             data: rowData.firstName,
             displayData: rowData.firstName,
             allowOverlay: true,
+            readonly: false,
           }
 
         case 'lastName':
@@ -263,6 +268,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
             data: rowData.lastName,
             displayData: rowData.lastName,
             allowOverlay: true,
+            readonly: false,
           }
 
         case 'optIn':
@@ -270,7 +276,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
             kind: GridCellKind.Boolean,
             data: rowData.optIn,
             allowOverlay: false,
-            readonly: true,
+            readonly: false,
           }
 
         case 'title':
@@ -279,6 +285,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
             data: rowData.title,
             displayData: rowData.title,
             allowOverlay: true,
+            readonly: false,
           }
 
         case 'website':
@@ -286,7 +293,8 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
             kind: GridCellKind.Uri,
             data: rowData.website,
             displayData: rowData.website.replace(/^https?:\/\//, ''),
-            allowOverlay: false,
+            allowOverlay: true,
+            readonly: false,
             hoverEffect: true,
           }
 
@@ -299,7 +307,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
               values: rowData.performance.values,
               color: rowData.performance.color,
             },
-            copyData: rowData.performance.values.map((v) => v.toFixed(2)).join(', '),
+            copyData: rowData.performance.values.map((v: number) => v.toFixed(2)).join(', '),
           } as SparklineCell
 
         case 'manager':
@@ -320,7 +328,8 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
             kind: GridCellKind.Text,
             data: date,
             displayData: date,
-            allowOverlay: false,
+            allowOverlay: true,
+            readonly: false,
           }
 
         default:
@@ -332,7 +341,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
           }
       }
     },
-    [columns, rows]
+    [columns, editableRows]
   )
 
   const getCellsForSelection = useCallback(
@@ -356,16 +365,58 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
     [getCellContent]
   )
 
+  const onCellEdited = useCallback(
+    (cell: Item, newValue: EditableGridCell) => {
+      const [col, row] = cell
+      const columnId = columns[col]?.id
+      if (!columnId || row < 0 || row >= editableRows.length) return
+
+      setEditableRows((prev: EmployeeRow[]) => {
+        const next = [...prev]
+        const current = next[row]
+        if (!current) return prev
+
+        switch (columnId) {
+          case 'email':
+          case 'firstName':
+          case 'lastName':
+          case 'title':
+          case 'website':
+            if (newValue.kind === GridCellKind.Text || newValue.kind === GridCellKind.Uri) {
+              next[row] = { ...current, [columnId]: newValue.data as string }
+            }
+            break
+          case 'optIn':
+            if (newValue.kind === GridCellKind.Boolean) {
+              next[row] = { ...current, optIn: Boolean(newValue.data) }
+            }
+            break
+          case 'hiredAt':
+            if (newValue.kind === GridCellKind.Text) {
+              const parsed = new Date(newValue.data)
+              next[row] = { ...current, hiredAt: Number.isNaN(parsed.getTime()) ? current.hiredAt : parsed }
+            }
+            break
+          default:
+            break
+        }
+        return next
+      })
+    },
+    [columns, editableRows.length]
+  )
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
       <DataEditor
         columns={columns}
-        rows={rows.length}
+        rows={editableRows.length}
         getCellContent={getCellContent}
         getCellsForSelection={getCellsForSelection}
-        rowHeight={50}
-        headerHeight={52}
-        groupHeaderHeight={42}
+        onCellEdited={onCellEdited}
+        rowHeight={72}
+        headerHeight={60}
+        groupHeaderHeight={48}
         rowMarkers="both"
         rowMarkerStartIndex={1}
         freezeColumns={2}

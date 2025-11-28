@@ -17,7 +17,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}><QueryProvider>{children}</QueryProvider></body>
+      <body className={inter.className}>
+        <QueryProvider>
+          {children}
+          <div id="portal" className="fixed left-0 top-0 z-[9999]" />
+        </QueryProvider>
+      </body>
     </html>
   )
 }

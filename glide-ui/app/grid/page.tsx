@@ -1,10 +1,14 @@
 'use client'
 
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
 
-import { EmployeeGrid } from '@/components/employee-grid'
 import { buildEmployees, employees as defaultEmployees } from '@/lib/data/employees'
+
+const EmployeeGrid = dynamic(() => import('@/components/employee-grid').then((m) => m.EmployeeGrid), {
+  ssr: false,
+})
 
 export default function GridPage() {
   const [data, setData] = useState(defaultEmployees)
@@ -18,7 +22,7 @@ export default function GridPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-white">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-8 px-6 py-12 lg:px-10">
+      <div className="mx-auto flex w-full max-w-screen-3xl flex-col gap-8 px-4 py-12 sm:px-6 lg:px-10">
         <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/40 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Dashboard</p>
@@ -59,7 +63,11 @@ export default function GridPage() {
               Optimized for large data with virtualization
             </div>
           </div>
-          <EmployeeGrid rows={data} />
+
+          {/* <<< FIX: Give the grid a height >>> */}
+          <div className="h-[650px] w-full">
+            <EmployeeGrid rows={data} />
+          </div>
         </section>
       </div>
     </main>

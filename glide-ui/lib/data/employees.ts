@@ -8,7 +8,6 @@ export type EmployeeRow = {
   email: string
   firstName: string
   lastName: string
-  photo: string
   optIn: boolean
   title: string
   website: string
@@ -119,21 +118,6 @@ const titles = [
 const domains = ['hotmail.com', 'gmail.com', 'outlook.com', 'proton.me', 'example.com']
 const sites = ['tight-white.biz', 'calm-den.name', 'lavish-supernatural.biz', 'noxious-concept.net', 'jittery-mascara.info', 'ugly-quartet.info']
 
-const scenicPhotos = [
-  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
-  'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429',
-  'https://images.unsplash.com/photo-1489515217757-5fd1be406fef',
-  'https://images.unsplash.com/photo-1433838552652-f9a46b332c40',
-  'https://images.unsplash.com/photo-1418065460487-3e41a6c84dc5',
-  'https://images.unsplash.com/photo-1421930866250-aa0594cea05c',
-  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
-  'https://images.unsplash.com/photo-1418065460487-3e41a6c84dc5',
-  'https://images.unsplash.com/photo-1469474968028-56623f02e42e',
-  'https://images.unsplash.com/photo-1489515217757-5fd1be406fef',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330',
-]
-
 const managerPool = [
   { name: 'Clementine Gerlach', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1' },
   { name: 'Shanelle Goyette', avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce' },
@@ -150,8 +134,6 @@ const managerPool = [
 ]
 
 const performancePalettes = ['#61b2c7', '#d7825f', '#7db05a', '#5b7fd1', '#d1668f']
-
-const withParams = (url: string) => `${url}?auto=format&fit=crop&w=160&q=60`
 
 const makeSeeded = (seed: number) => {
   let value = seed % 2147483647
@@ -185,7 +167,6 @@ export const buildEmployees = (count = 50, seedOffset = 0): EmployeeRow[] =>
     const emailDomain = domains[(index + seedOffset) % domains.length]
     const email = `${firstName}.${lastName}${index + 1}@${emailDomain}`.toLowerCase()
     const title = titles[(index * 2 + 3 + seedOffset) % titles.length]
-    const photo = withParams(scenicPhotos[(index + 2 + seedOffset) % scenicPhotos.length])
     const manager = managerPool[(index + seedOffset) % managerPool.length]
     const optIn = (index + 2 + seedOffset) % 3 !== 0
     const website = `https://${sites[(index + seedOffset) % sites.length]}`
@@ -197,7 +178,6 @@ export const buildEmployees = (count = 50, seedOffset = 0): EmployeeRow[] =>
       email,
       firstName,
       lastName,
-      photo,
       optIn,
       title,
       website,

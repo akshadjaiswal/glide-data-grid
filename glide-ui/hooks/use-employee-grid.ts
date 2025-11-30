@@ -29,10 +29,16 @@ type UseEmployeeGridResult = {
   getCellContent: (cell: Item) => GridCell
   getCellsForSelection: (selection: Rectangle) => GridCell[][]
   onCellEdited: (cell: Item, newValue: EditableGridCell) => void
+  sortState: { columnId: ColumnId | null; direction: 'asc' | 'desc' | null }
+  setSort: (columnId: ColumnId, direction: 'asc' | 'desc' | null) => void
 }
 
 export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResult {
   const [rows, setRows] = useState<EmployeeRow[]>(() => [...initialRows])
+  const [sortState, setSortState] = useState<{ columnId: ColumnId | null; direction: 'asc' | 'desc' | null }>({
+    columnId: null,
+    direction: null,
+  })
 
   useEffect(() => {
     setRows([...initialRows])
@@ -50,10 +56,35 @@ export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResu
     }
   }, [])
 
+  const sortedRows = useMemo(() => {
+    if (!sortState.columnId || !sortState.direction) return rows
+    const dir = sortState.direction === 'asc' ? 1 : -1
+    const col = sortState.columnId
+
+    return [...rows].sort((a, b) => {
+      const av = a[col]
+      const bv = b[col]
+
+      if (col === 'hiredAt') {
+        const ad = a.hiredAt.getTime()
+        const bd = b.hiredAt.getTime()
+        return ad === bd ? 0 : ad > bd ? dir : -dir
+      }
+
+      if (col === 'optIn') {
+        return av === bv ? 0 : av ? dir : -dir
+      }
+
+      const as = String(av ?? '').toLowerCase()
+      const bs = String(bv ?? '').toLowerCase()
+      return as === bs ? 0 : as > bs ? dir : -dir
+    })
+  }, [rows, sortState])
+
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
       const [col, row] = cell
-      const rowData = rows[row]
+      const rowData = sortedRows[row]
       const columnId = employeeColumns[col]?.id as ColumnId | undefined
 
       if (!rowData || !columnId) {
@@ -146,7 +177,7 @@ export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResu
           return { kind: GridCellKind.Text, data: '', displayData: '', allowOverlay: false }
       }
     },
-    [rows]
+    [sortedRows]
   )
 
   const getCellsForSelection = useCallback(
@@ -197,8 +228,12 @@ export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResu
         return next
       })
     },
-    [rows.length]
+    [rows.length, sortState]
   )
+
+  const setSort = useCallback((columnId: ColumnId, direction: 'asc' | 'desc' | null) => {
+    setSortState({ columnId, direction })
+  }, [])
 
   return {
     rows,
@@ -207,5 +242,7 @@ export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResu
     getCellContent,
     getCellsForSelection,
     onCellEdited,
+    sortState,
+    setSort,
   }
 }

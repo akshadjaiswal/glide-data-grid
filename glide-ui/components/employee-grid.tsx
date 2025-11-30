@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   DataEditor,
   GridCellKind,
@@ -12,6 +12,8 @@ import 'react-responsive-carousel/lib/styles/carousel.min.css'
 
 import type { EmployeeRow } from '@/lib/data/employees'
 import { useEmployeeGrid } from '@/hooks/use-employee-grid'
+import { SortMenu } from './sort-menu'
+import type { ColumnId } from './employee-grid-config'
 
 type SparklineCell = CustomCell<{ kind: 'sparkline'; values: readonly number[]; color: string }>
 type PersonaCell = CustomCell<{ kind: 'persona'; name: string; avatar: string }>
@@ -113,6 +115,7 @@ type EmployeeGridProps = {
 export function EmployeeGrid({ rows }: EmployeeGridProps) {
   const grid = useEmployeeGrid(rows)
   const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer], [])
+  const [sortMenu, setSortMenu] = useState<{ col: number; x: number; y: number; columnId: ColumnId } | null>(null)
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
@@ -122,6 +125,14 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
         getCellContent={grid.getCellContent}
         getCellsForSelection={grid.getCellsForSelection}
         onCellEdited={grid.onCellEdited}
+        onHeaderMenuClick={(col, _screenRect) => {
+          const columnId = grid.columns[col]?.id as ColumnId | undefined
+          if (!columnId) return
+          // Use screenRect to position menu near header
+          const x = _screenRect.x + _screenRect.width
+          const y = _screenRect.y + _screenRect.height
+          setSortMenu({ col, x, y, columnId })
+        }}
         rowHeight={72}
         headerHeight={60}
         groupHeaderHeight={48}
@@ -137,6 +148,22 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
         height="80vh"
         width="100%"
       />
+      {sortMenu ? (
+        <div
+          className="fixed z-[9999]"
+          style={{ left: sortMenu.x + 8, top: sortMenu.y + 8 }}
+          onMouseLeave={() => setSortMenu(null)}
+        >
+          <SortMenu
+            columnId={sortMenu.columnId}
+            current={grid.sortState.columnId === sortMenu.columnId ? grid.sortState.direction : null}
+            onChange={(colId, dir) => {
+              grid.setSort(colId, dir)
+              setSortMenu(null)
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }

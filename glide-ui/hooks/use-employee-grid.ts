@@ -152,6 +152,15 @@ export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResu
             },
             copyData: rowData.performance.values.map((v: number) => v.toFixed(2)).join(', '),
           }
+        case 'tags': {
+          const tags = rowData.tags
+          return {
+            kind: GridCellKind.Custom,
+            allowOverlay: false,
+            data: { kind: 'tags', tags },
+            copyData: tags.join(', '),
+          }
+        }
         case 'manager':
           return {
             kind: GridCellKind.Custom,

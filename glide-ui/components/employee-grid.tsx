@@ -14,6 +14,7 @@ import type { EmployeeRow } from '@/lib/data/employees'
 import { useEmployeeGrid } from '@/hooks/use-employee-grid'
 import { SortMenu } from './sort-menu'
 import type { ColumnId } from './employee-grid-config'
+import { tagsRenderer } from './tags-cell-renderer'
 
 type SparklineCell = CustomCell<{ kind: 'sparkline'; values: readonly number[]; color: string }>
 type PersonaCell = CustomCell<{ kind: 'persona'; name: string; avatar: string }>
@@ -114,7 +115,7 @@ type EmployeeGridProps = {
 
 export function EmployeeGrid({ rows }: EmployeeGridProps) {
   const grid = useEmployeeGrid(rows)
-  const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer], [])
+  const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer, tagsRenderer], [])
   const [sortMenu, setSortMenu] = useState<{ col: number; x: number; y: number; columnId: ColumnId } | null>(null)
 
   return (

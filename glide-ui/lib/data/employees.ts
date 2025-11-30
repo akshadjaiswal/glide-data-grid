@@ -17,6 +17,7 @@ export type EmployeeRow = {
     avatar: string
   }
   hiredAt: Date
+  tags: string[]
 }
 
 const firstNames = [
@@ -134,6 +135,23 @@ const managerPool = [
 ]
 
 const performancePalettes = ['#61b2c7', '#d7825f', '#7db05a', '#5b7fd1', '#d1668f']
+const tagPool = [
+  'Design',
+  'Research',
+  'Data',
+  'Growth',
+  'Ops',
+  'Platform',
+  'Mobile',
+  'Web',
+  'AI',
+  'ML',
+  'Backend',
+  'Frontend',
+  'Infra',
+  'Security',
+  'Product',
+]
 
 const makeSeeded = (seed: number) => {
   let value = seed % 2147483647
@@ -172,6 +190,11 @@ export const buildEmployees = (count = 50, seedOffset = 0): EmployeeRow[] =>
     const website = `https://${sites[(index + seedOffset) % sites.length]}`
     const performance = generatePerformance(rowSeed + 5)
     const hiredAt = new Date(2024, 0, 12 + index * 7 + (seedOffset % 5))
+    const tags = [
+      tagPool[(index + seedOffset) % tagPool.length],
+      tagPool[(index * 2 + seedOffset) % tagPool.length],
+      tagPool[(index * 3 + seedOffset) % tagPool.length],
+    ].filter(Boolean)
 
     return {
       id: index + 1,
@@ -184,6 +207,7 @@ export const buildEmployees = (count = 50, seedOffset = 0): EmployeeRow[] =>
       performance,
       manager,
       hiredAt,
+      tags,
     }
   })
 

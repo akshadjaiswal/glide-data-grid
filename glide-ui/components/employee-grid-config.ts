@@ -9,6 +9,7 @@ export type ColumnId =
   | 'website'
   | 'performance'
   | 'manager'
+  | 'tags'
   | 'hiredAt'
 
 export const employeeColumns: readonly GridColumn[] = [
@@ -19,6 +20,7 @@ export const employeeColumns: readonly GridColumn[] = [
   { id: 'title', title: 'Title', group: 'Info', width: 260, icon: GridColumnIcon.HeaderString, grow: 1 },
   { id: 'website', title: 'More Info', group: 'Info', width: 240, icon: GridColumnIcon.HeaderUri },
   { id: 'performance', title: 'Performance', group: 'Performance', width: 240, icon: GridColumnIcon.HeaderNumber },
+  { id: 'tags', title: 'Tags', group: 'Info', width: 240, icon: GridColumnIcon.HeaderArray },
   { id: 'manager', title: 'Manager', group: 'Employment Data', width: 260, icon: GridColumnIcon.HeaderImage },
   { id: 'hiredAt', title: 'Hired', group: 'Employment Data', width: 180, icon: GridColumnIcon.HeaderDate },
 ]

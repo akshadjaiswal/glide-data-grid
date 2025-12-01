@@ -139,6 +139,16 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
         groupHeaderHeight={48}
         rowMarkers="both"
         rowMarkerStartIndex={1}
+        trailingRowOptions={{ hint: 'Add row', sticky: true }}
+        onRowAppended={() => {
+          grid.addRow()
+          return undefined
+        }}
+        onDelete={(selection) => {
+          const rowsToDelete = selection.rows?.toArray?.() ?? []
+          grid.deleteRows(rowsToDelete)
+          return true
+        }}
         freezeColumns={2}
         smoothScrollX
         smoothScrollY

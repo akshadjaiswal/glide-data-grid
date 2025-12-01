@@ -211,4 +211,18 @@ export const buildEmployees = (count = 50, seedOffset = 0): EmployeeRow[] =>
     }
   })
 
+export const blankEmployee = (id: number): EmployeeRow => ({
+  id,
+  email: `new.user${id}@example.com`,
+  firstName: 'New',
+  lastName: 'User',
+  optIn: false,
+  title: 'New Role',
+  website: 'https://example.com',
+  performance: { values: Array.from({ length: 20 }, () => 0.5), color: performancePalettes[0] },
+  manager: managerPool[0],
+  hiredAt: new Date(),
+  tags: ['New'],
+})
+
 export const employees = buildEmployees(50)

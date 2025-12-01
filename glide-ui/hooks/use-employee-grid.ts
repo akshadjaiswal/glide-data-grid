@@ -9,6 +9,7 @@ import {
 } from '@glideapps/glide-data-grid'
 import { format } from 'date-fns'
 
+import { blankEmployee } from '@/lib/data/employees'
 import type { EmployeeRow } from '@/lib/data/employees'
 import {
   editableBooleanColumns,
@@ -31,6 +32,8 @@ type UseEmployeeGridResult = {
   onCellEdited: (cell: Item, newValue: EditableGridCell) => void
   sortState: { columnId: ColumnId | null; direction: 'asc' | 'desc' | null }
   setSort: (columnId: ColumnId, direction: 'asc' | 'desc' | null) => void
+  addRow: () => void
+  deleteRows: (indices: number[]) => void
 }
 
 export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResult {
@@ -244,6 +247,19 @@ export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResu
     setSortState({ columnId, direction })
   }, [])
 
+  const addRow = useCallback(() => {
+    setRows((prev) => {
+      const nextId = prev.length ? Math.max(...prev.map((r) => r.id)) + 1 : 1
+      return [...prev, blankEmployee(nextId)]
+    })
+  }, [])
+
+  const deleteRows = useCallback((indices: number[]) => {
+    if (!indices.length) return
+    const toDelete = new Set(indices)
+    setRows((prev) => prev.filter((_, idx) => !toDelete.has(idx)))
+  }, [])
+
   return {
     rows,
     columns: employeeColumns,
@@ -253,5 +269,7 @@ export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResu
     onCellEdited,
     sortState,
     setSort,
+    addRow,
+    deleteRows,
   }
 }

@@ -15,9 +15,12 @@ import {
   editableBooleanColumns,
   editableTextColumns,
   employeeColumns,
-  employeeThemeOverrides,
+  employeeDarkTheme,
+  employeeLightTheme,
   type ColumnId,
 } from '@/components/employee-grid-config'
+
+type ThemeVariant = 'light' | 'dark'
 
 type UseEmployeeGridResult = {
   rows: EmployeeRow[]
@@ -36,7 +39,7 @@ type UseEmployeeGridResult = {
   deleteRows: (indices: number[]) => void
 }
 
-export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResult {
+export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeVariant = 'light'): UseEmployeeGridResult {
   const [rows, setRows] = useState<EmployeeRow[]>(() => [...initialRows])
   const [sortState, setSortState] = useState<{ columnId: ColumnId | null; direction: 'asc' | 'desc' | null }>({
     columnId: null,
@@ -49,7 +52,8 @@ export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResu
 
   const theme = useMemo(() => {
     const base = getDefaultTheme()
-    const merged = { ...base, ...employeeThemeOverrides }
+    const overrides = themeVariant === 'dark' ? employeeDarkTheme : employeeLightTheme
+    const merged = { ...base, ...overrides }
 
     return {
       ...merged,
@@ -57,7 +61,7 @@ export function useEmployeeGrid(initialRows: EmployeeRow[]): UseEmployeeGridResu
       headerFontFull: merged.headerFontStyle,
       markerFontFull: merged.markerFontStyle,
     }
-  }, [])
+  }, [themeVariant])
 
   const sortedRows = useMemo(() => {
     if (!sortState.columnId || !sortState.direction) return rows

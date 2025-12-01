@@ -114,12 +114,22 @@ type EmployeeGridProps = {
 }
 
 export function EmployeeGrid({ rows }: EmployeeGridProps) {
-  const grid = useEmployeeGrid(rows)
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light')
+  const grid = useEmployeeGrid(rows, themeMode)
   const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer, tagsRenderer], [])
   const [sortMenu, setSortMenu] = useState<{ col: number; x: number; y: number; columnId: ColumnId } | null>(null)
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
+      <div className="mb-3 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-[1px] hover:border-slate-300 hover:shadow"
+        >
+          Theme: {themeMode === 'light' ? 'Light' : 'Dark'}
+        </button>
+      </div>
       <DataEditor
         columns={grid.columns}
         rows={grid.rows.length}
@@ -135,10 +145,20 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
           setSortMenu({ col, x, y, columnId })
         }}
         rowHeight={72}
-        headerHeight={60}
-        groupHeaderHeight={48}
+        headerHeight={48}
+        groupHeaderHeight={40}
         rowMarkers="both"
         rowMarkerStartIndex={1}
+        trailingRowOptions={{ hint: 'Add row', sticky: true }}
+        onRowAppended={() => {
+          grid.addRow()
+          return undefined
+        }}
+        onDelete={(selection) => {
+          const rowsToDelete = selection.rows?.toArray?.() ?? []
+          grid.deleteRows(rowsToDelete)
+          return true
+        }}
         freezeColumns={2}
         smoothScrollX
         smoothScrollY

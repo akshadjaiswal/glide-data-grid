@@ -22,6 +22,17 @@ import {
 
 type ThemeVariant = 'light' | 'dark'
 
+// Helper function to realize theme fonts (combines font style + font family)
+// This mimics glide-data-grid's internal mergeAndRealizeTheme function
+function realizeThemeFonts(theme: ReturnType<typeof getDefaultTheme>) {
+  return {
+    ...theme,
+    baseFontFull: `${theme.baseFontStyle} ${theme.fontFamily}`,
+    headerFontFull: `${theme.headerFontStyle} ${theme.fontFamily}`,
+    markerFontFull: `${theme.markerFontStyle} ${theme.fontFamily}`,
+  }
+}
+
 type UseEmployeeGridResult = {
   rows: EmployeeRow[]
   columns: typeof employeeColumns
@@ -54,13 +65,7 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
     const base = getDefaultTheme()
     const overrides = themeVariant === 'dark' ? employeeDarkTheme : employeeLightTheme
     const merged = { ...base, ...overrides }
-
-    return {
-      ...merged,
-      baseFontFull: merged.baseFontStyle,
-      headerFontFull: merged.headerFontStyle,
-      markerFontFull: merged.markerFontStyle,
-    }
+    return realizeThemeFonts(merged)
   }, [themeVariant])
 
   const sortedRows = useMemo(() => {

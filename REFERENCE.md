@@ -7,8 +7,7 @@ Tone: concise, prescriptive, and opinionated about separation of concerns.
 High-level anatomy (what to copy first)
 - Grid wrapper UI: components/employee-grid.tsx
 - Grid config: components/employee-grid-config.ts (columns, editable flags, theme tokens)
-- Grid logic: hooks/use-employee-grid.ts (state, sorting, editing, add/delete)
-- Theme builder: lib/theme.ts (builds realized theme, font scaling, mode)
+- Grid logic: hooks/use-employee-grid.ts (state, sorting, editing, add/delete, theme realization)
 - Custom cells: components/tags-cell-renderer.ts + inline sparkline/persona renderers in employee-grid.tsx
 - Data shape reference: lib/data/employees.ts (EmployeeRow type and dummy generator)
 - Sort menu: components/sort-menu.ts
@@ -25,10 +24,9 @@ Guiding principles
 
 ----------------------------------------------------------------------
 File-by-file responsibilities
-- employee-grid.tsx: renders DataEditor, registers custom renderers, wires callbacks (sorting menu, add/delete), theme/font toggles.
-- employee-grid-config.ts: declares columns (id/title/group/width/icon), editable column lists, theme tokens (light/dark).
-- use-employee-grid.ts: owns editable state, sorting state, derived sortedRows, getCellContent, getCellsForSelection, onCellEdited, addRow, deleteRows.
-- lib/theme.ts: buildGridTheme(mode, fontScale) returning realized theme (baseFontFull/headerFontFull/markerFontFull set).
+- employee-grid.tsx: renders DataEditor, registers custom renderers, wires callbacks (sorting menu, add/delete), light/dark theme toggle.
+- employee-grid-config.ts: declares columns (id/title/group/width/icon), editable column lists, theme tokens (light/dark). CRITICAL: font styles must be weight+size ONLY (no font family).
+- use-employee-grid.ts: owns editable state, sorting state, derived sortedRows, getCellContent, getCellsForSelection, onCellEdited, addRow, deleteRows, AND theme realization via realizeThemeFonts() helper.
 - tags-cell-renderer.ts: draws pill tags using theme.baseFontFull.
 - sort-menu.ts: simple ascending/descending/clear UI popover.
 - lib/data/employees.ts: EmployeeRow type and dummy data helpers (buildEmployees, blankEmployee).
@@ -49,18 +47,60 @@ If your dataset differs, update the switch in getCellContent and the column conf
 
 ----------------------------------------------------------------------
 Theme and fonts: why CSS devtools tweaks fail
-- Glide renders text on canvas; CSS overrides on DOM nodes don’t affect canvas text.
+- Glide renders text on canvas; CSS overrides on DOM nodes don't affect canvas text.
 - Font size comes from theme.baseFontFull/headerFontFull/markerFontFull.
-- These “Full” fields are produced by mergeAndRealizeTheme(getDefaultTheme(), overrides).
-- If you only spread overrides over getDefaultTheme(), the “Full” fields stay default → no font change.
-- Use buildGridTheme to generate a realized theme with scaled font sizes.
+- These "Full" fields are computed by concatenating fontStyle + fontFamily (e.g., "400 16px" + "Inter, sans-serif" → "400 16px Inter, sans-serif").
+- If you only spread overrides over getDefaultTheme() without proper concatenation, fonts won't render correctly.
+- Our implementation uses a custom realizeThemeFonts() helper function in use-employee-grid.ts to create the *FontFull properties.
 
 ----------------------------------------------------------------------
-buildGridTheme (lib/theme.ts) usage
-- Inputs: variant ('light' | 'dark'), fontScale (number, e.g., 1.1 for +10%).
-- Steps: start with getDefaultTheme → apply light/dark overrides → scale font strings → mergeAndRealizeTheme.
-- Output: Theme with baseFontFull/headerFontFull/markerFontFull reflecting your sizes.
-- Feed this theme directly to DataEditor.
+CRITICAL: Font Style Format Rules (employee-grid-config.ts)
+⚠️ **MOST COMMON MISTAKE**: Including font family inside baseFontStyle/headerFontStyle/markerFontStyle
+
+❌ WRONG (causes duplication and breaks rendering):
+```typescript
+baseFontStyle: '400 16px "Inter", -apple-system, BlinkMacSystemFont, sans-serif'
+fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
+// Result: baseFontFull becomes "400 16px Inter... Inter..." (DUPLICATED!)
+```
+
+✅ CORRECT (font style contains ONLY weight + size):
+```typescript
+baseFontStyle: '400 16px'        // Weight + size ONLY
+headerFontStyle: '600 16px'      // Weight + size ONLY
+markerFontStyle: '600 16px'      // Weight + size ONLY
+fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'  // Separate
+// Result: baseFontFull = "400 16px Inter, -apple-system..." (CORRECT!)
+```
+
+The realizeThemeFonts() function in use-employee-grid.ts handles concatenation:
+```typescript
+function realizeThemeFonts(theme) {
+  return {
+    ...theme,
+    baseFontFull: `${theme.baseFontStyle} ${theme.fontFamily}`,
+    headerFontFull: `${theme.headerFontStyle} ${theme.fontFamily}`,
+    markerFontFull: `${theme.markerFontStyle} ${theme.fontFamily}`,
+  }
+}
+```
+
+----------------------------------------------------------------------
+Theme realization in use-employee-grid.ts
+- getDefaultTheme() provides base theme from @glideapps/glide-data-grid.
+- Merge base with employeeLightTheme or employeeDarkTheme overrides.
+- Call realizeThemeFonts(merged) to create baseFontFull/headerFontFull/markerFontFull.
+- Pass realized theme to DataEditor.
+
+Example from use-employee-grid.ts:
+```typescript
+const theme = useMemo(() => {
+  const base = getDefaultTheme()
+  const overrides = themeVariant === 'dark' ? employeeDarkTheme : employeeLightTheme
+  const merged = { ...base, ...overrides }
+  return realizeThemeFonts(merged)
+}, [themeVariant])
+```
 
 ----------------------------------------------------------------------
 Custom renderers and fonts
@@ -99,10 +139,11 @@ Columns and grouping
 - Align column ids with getCellContent mapping to avoid runtime gaps.
 
 ----------------------------------------------------------------------
-Theme modes and font scaling (UI)
-- employee-grid.tsx includes a theme toggle (light/dark) and a fontScale slider (e.g., 90–140%).
-- These propagate to use-employee-grid → buildGridTheme → DataEditor.
-- To embed in another app, you can remove the UI toggle and feed mode/scale from your own theme context.
+Theme modes (UI)
+- employee-grid.tsx includes a simple theme toggle button (light/dark mode only).
+- Theme mode propagates to use-employee-grid → realizeThemeFonts → DataEditor.
+- To embed in another app, remove the UI toggle and pass themeVariant from your own theme context/provider.
+- No font scaling slider in current implementation; adjust font sizes directly in employee-grid-config.ts.
 
 ----------------------------------------------------------------------
 Copy-friendly selection
@@ -119,12 +160,13 @@ Layout sizing
 ----------------------------------------------------------------------
 Minimal embed steps (checklist)
 1) Install @glideapps/glide-data-grid and import its CSS.
-2) Copy: employee-grid.tsx, employee-grid-config.ts, use-employee-grid.ts, lib/theme.ts, custom renderers.
+2) Copy: employee-grid.tsx, employee-grid-config.ts, use-employee-grid.ts, custom renderers (tags-cell-renderer.ts).
 3) Fix path aliases (@/…) to your project structure.
 4) Map your data to EmployeeRow fields or adjust getCellContent/onCellEdited accordingly.
-5) Choose light/dark and fontScale; build theme via buildGridTheme; pass to DataEditor.
-6) Keep add/delete/sort/edit as-is, or wire them to your backend.
-7) Verify copy behavior (getCellsForSelection) and custom cells (sparkline/persona/tags).
+5) CRITICAL: Verify font styles in config are weight+size ONLY (no font family). Example: baseFontStyle: '400 16px' NOT '400 16px Inter'.
+6) Choose light/dark mode; theme is auto-realized in use-employee-grid.ts hook via realizeThemeFonts().
+7) Keep add/delete/sort/edit as-is, or wire them to your backend.
+8) Verify copy behavior (getCellsForSelection) and custom cells (sparkline/persona/tags).
 
 ----------------------------------------------------------------------
 Adapting to your domain (examples)
@@ -198,20 +240,23 @@ Deployment tips
 
 ----------------------------------------------------------------------
 Common pitfalls (and fixes)
-- Fonts not changing: ensure buildGridTheme + mergeAndRealizeTheme is used; don’t rely on CSS vars alone.
-- Custom renderers small text: switch to theme.baseFontFull instead of hardcoded px.
-- Copy not working: implement getCellsForSelection and set copyData for custom cells.
-- Sorting not applied: ensure you consume sortedRows, not raw rows, in getCellContent and rows prop.
-- Trailing row add not firing: make sure onRowAppended returns a value or undefined (not a string when typed differently).
+- ⚠️ **Fonts not changing (MOST COMMON)**: You included font family inside baseFontStyle/headerFontStyle. Fix: Remove font family from style strings, keep only weight+size (e.g., '400 16px').
+- Fonts still not changing: Ensure realizeThemeFonts() is called in use-employee-grid.ts to create *FontFull properties.
+- Custom renderers small text: Use theme.baseFontFull instead of hardcoded px sizes.
+- Copy not working: Implement getCellsForSelection and set copyData for custom cells.
+- Sorting not applied: Ensure you consume sortedRows, not raw rows, in getCellContent and rows prop.
+- Trailing row add not firing: Make sure onRowAppended returns a value or undefined (not a string when typed differently).
+- CSS changes not working: Remember canvas text ignores CSS; all styling must be in theme object.
 
 ----------------------------------------------------------------------
 Migrating into a brownfield app (step-by-step)
 1) Drop the core files into your repo; fix import aliases.
 2) Replace dummy data with your fetch; ensure EmployeeRow aligns or adjust mapping.
-3) Use buildGridTheme; pass mode/scale from your theme context or keep the local toggle.
-4) Keep custom renderers; adjust visuals if your theme differs.
-5) Wire add/delete to your data layer; keep optimistic updates minimal.
-6) Verify sorting/editing after integration; adjust comparator and onCellEdited as needed.
+3) **CRITICAL**: Check employee-grid-config.ts font styles - remove any font families, keep weight+size only.
+4) Pass themeVariant ('light' | 'dark') from your theme context/provider or keep the local toggle.
+5) Keep custom renderers; adjust visuals if your theme differs.
+6) Wire add/delete to your data layer; keep optimistic updates minimal.
+7) Verify sorting/editing after integration; adjust comparator and onCellEdited as needed.
 
 ----------------------------------------------------------------------
 Light vs dark theming notes
@@ -220,10 +265,11 @@ Light vs dark theming notes
 - You can standardize padding across modes if you prefer consistent density.
 
 ----------------------------------------------------------------------
-Font scaling slider
-- In employee-grid.tsx, the slider adjusts fontScale and re-computes theme via the hook.
-- Range defaults 90–140%; change to suit your design system.
-- For production, you can remove the slider and set a fixed scale per breakpoint.
+Adjusting font sizes
+- Modify baseFontStyle, headerFontStyle, markerFontStyle in employee-grid-config.ts (light and dark themes).
+- Example: Change baseFontStyle from '400 16px' to '400 18px' for larger text.
+- Remember: font style = weight + size ONLY. Font family is separate.
+- After changing font sizes, consider adjusting rowHeight/headerHeight in employee-grid.tsx to prevent clipping.
 
 ----------------------------------------------------------------------
 Canvas and CSS
@@ -315,20 +361,23 @@ Sorting menu positioning
 - Closes on mouse leave; setSort called on selection; sort state stored in hook.
 
 ----------------------------------------------------------------------
-Toolbar (theme/text size)
-- Light/dark toggle: updates themeVariant in hook.
-- Text size slider: updates fontScale in hook.
+Toolbar (theme toggle only)
+- Light/dark toggle button: updates themeVariant prop passed to use-employee-grid hook.
+- No text size slider in current implementation.
+- To adjust text size: modify baseFontStyle in employee-grid-config.ts.
 - Remove or replace with your design system controls as needed.
 
 ----------------------------------------------------------------------
 Design tokens per mode
-- Light: higher padding, larger base fonts (18px default in overrides).
-- Dark: tighter padding, smaller base fonts per supplied tokens; override if you prefer symmetry.
+- Light theme (employee-grid-config.ts): baseFontStyle: '400 16px', larger padding (cellHorizontalPadding: 18, cellVerticalPadding: 16).
+- Dark theme (employee-grid-config.ts): baseFontStyle: '400 16px', tighter padding (cellHorizontalPadding: 8, cellVerticalPadding: 3).
+- Adjust these values to match your design system; override as needed for symmetry across modes.
 
 ----------------------------------------------------------------------
 Using your own design system
-- Map colors/spacing/typography into the light/dark override objects.
-- Keep sizes in px/rem for font scaling helper to parse and scale.
+- Map colors/spacing/typography into the light/dark override objects in employee-grid-config.ts.
+- Font sizes must be in px (e.g., '16px', '18px') in the font style strings.
+- Remember: baseFontStyle/headerFontStyle = weight + size only; fontFamily is separate.
 
 ----------------------------------------------------------------------
 Extending column metadata
@@ -374,9 +423,10 @@ Performance tuning
 - Avoid recreating large data arrays in render; use state + derived memo.
 
 ----------------------------------------------------------------------
-Testing font scaling
-- Change fontScale to 1.3 and verify no clipping.
-- Verify row marker numbers remain legible.
+Testing font size changes
+- Change baseFontStyle from '400 16px' to '400 20px' in employee-grid-config.ts and verify text is larger.
+- If text clips, increase rowHeight/headerHeight in employee-grid.tsx.
+- Verify row marker numbers remain legible (adjust markerFontStyle if needed).
 
 ----------------------------------------------------------------------
 Adding new custom cells (template)
@@ -387,8 +437,9 @@ Adding new custom cells (template)
 
 ----------------------------------------------------------------------
 Multi-theme readiness
-- buildGridTheme accepts variant; add more modes by extending overrides and variant type.
-- Keep fontScale as a separate concern from theme mode.
+- Add more theme modes (e.g., 'high-contrast') by creating new theme objects in employee-grid-config.ts.
+- Extend ThemeVariant type in use-employee-grid.ts to include new modes.
+- realizeThemeFonts() works with any theme object; just merge and realize.
 
 ----------------------------------------------------------------------
 Import paths in brownfield apps
@@ -432,18 +483,22 @@ Versioning
 
 ----------------------------------------------------------------------
 Deploy checklist
-- CSS imported.
-- Theme realized (buildGridTheme).
-- Data mapped to columns.
+- CSS imported (@glideapps/glide-data-grid/dist/index.css).
+- Theme font styles verified (baseFontStyle = weight + size only, NO font family).
+- realizeThemeFonts() called in use-employee-grid.ts.
+- Data mapped to columns via getCellContent.
 - Sorting/editing/add/delete tested.
-- Custom cells registered.
-- Path aliases fixed.
+- Custom cells registered in customRenderers array.
+- Path aliases fixed (@/ imports resolved).
+- Row heights adjusted for font sizes (no text clipping).
 
 ----------------------------------------------------------------------
 Debugging font issues
-- Log theme.baseFontFull/headerFontFull to ensure scaling is applied.
-- If unchanged, ensure mergeAndRealizeTheme is called (buildGridTheme).
-- Verify rowHeight/headerHeight match your font scale to avoid clipping.
+- **First check**: Inspect employee-grid-config.ts - do baseFontStyle/headerFontStyle include font family? If yes, REMOVE IT.
+- Log theme.baseFontFull/headerFontFull in use-employee-grid.ts to verify they're correctly formatted (e.g., "400 16px Inter, sans-serif").
+- If *FontFull properties are missing, ensure realizeThemeFonts() is called in the theme useMemo.
+- Verify rowHeight/headerHeight in employee-grid.tsx match your font sizes to avoid clipping.
+- Still not working? Check browser DevTools canvas inspector to see what font string is actually being used.
 
 ----------------------------------------------------------------------
 Debugging rendering issues
@@ -566,14 +621,15 @@ Maintenance tips
 
 ----------------------------------------------------------------------
 Where to adjust fonts if needed
-- employee-grid-config.ts for base/header/marker/editor sizes (pre-scale).
-- lib/theme.ts fontScale argument for runtime scaling.
-- Row/header heights in employee-grid.tsx to fit the chosen sizes.
+- employee-grid-config.ts: Change baseFontStyle/headerFontStyle/markerFontStyle (format: weight + size, e.g., '400 18px').
+- employee-grid-config.ts: Change editorFontSize for overlay editor text (e.g., '18px').
+- employee-grid.tsx: Adjust rowHeight/headerHeight/groupHeaderHeight to fit larger fonts without clipping.
 
 ----------------------------------------------------------------------
 Where to adjust colors if needed
-- employee-grid-config.ts light/dark override objects.
-- Use buildGridTheme to realize them; don’t rely on CSS var tweaks.
+- employee-grid-config.ts: Modify employeeLightTheme and employeeDarkTheme color properties.
+- realizeThemeFonts() in use-employee-grid.ts will merge them automatically.
+- Don't rely on CSS variable tweaks; canvas ignores CSS - all colors must be in theme object.
 
 ----------------------------------------------------------------------
 Where to adjust paddings if needed
@@ -588,12 +644,13 @@ Known limitations
 
 ----------------------------------------------------------------------
 Quick-start TL;DR for brownfield
-- Copy grid files; fix imports.
-- Map your data; adjust columns.
-- Use buildGridTheme(mode, scale); pass to DataEditor.
-- Keep custom renderers; register them.
-- Wire add/delete/sort/edit as needed.
-- Test font scaling via slider; adjust heights if clipping.
+- Copy grid files: employee-grid.tsx, employee-grid-config.ts, use-employee-grid.ts, tags-cell-renderer.ts; fix imports.
+- Map your data; adjust columns in config.
+- ⚠️ **CRITICAL**: Verify font styles in config = weight + size only (e.g., '400 16px'), NO font family.
+- Theme auto-realized in use-employee-grid.ts via realizeThemeFonts() helper.
+- Keep custom renderers; register them in customRenderers array.
+- Wire add/delete/sort/edit to your backend as needed.
+- Test font sizes; adjust rowHeight if text clips.
 
 ----------------------------------------------------------------------
 Author: Akshad Jaiswal — use this guide to safely lift the grid into your app.

@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import {
-  DataEditor,
   GridCellKind,
+  CompactSelection,
   type CustomCell,
   type CustomRenderer,
+  type GridSelection,
 } from '@glideapps/glide-data-grid'
 import '@glideapps/glide-data-grid/dist/index.css'
 import 'react-responsive-carousel/lib/styles/carousel.min.css'
@@ -15,6 +16,7 @@ import { useEmployeeGrid } from '@/hooks/use-employee-grid'
 import { SortMenu } from './sort-menu'
 import type { ColumnId } from './employee-grid-config'
 import { tagsRenderer } from './tags-cell-renderer'
+import { DataGridWrapper } from './data-grid-wrapper'
 
 type SparklineCell = CustomCell<{ kind: 'sparkline'; values: readonly number[]; color: string }>
 type PersonaCell = CustomCell<{ kind: 'persona'; name: string; avatar: string }>
@@ -121,9 +123,46 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
   const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer, tagsRenderer], [])
   const [sortMenu, setSortMenu] = useState<{ col: number; x: number; y: number; columnId: ColumnId } | null>(null)
 
+  // Grid selection state for row checkboxes
+  const [gridSelection, setGridSelection] = useState<GridSelection>({
+    columns: CompactSelection.empty(),
+    rows: CompactSelection.empty(),
+  })
+
+  // Handle grid selection change
+  const handleGridSelectionChange = useCallback((newSelection: GridSelection) => {
+    setGridSelection(newSelection)
+
+    // Optional: extract selected rows for debugging or external use
+    const selectedRows: EmployeeRow[] = []
+    if (newSelection.rows) {
+      const rowsArray = Array.from(newSelection.rows)
+      rowsArray.forEach((rowIndex) => {
+        if (grid.sortedRows[rowIndex]) {
+          selectedRows.push(grid.sortedRows[rowIndex])
+        }
+      })
+    }
+
+    // You can use selectedRows here or pass to parent component
+    if (selectedRows.length > 0) {
+      console.log('Selected rows:', selectedRows)
+    }
+  }, [grid.sortedRows])
+
+  // Calculate selected count for display
+  const selectedCount = gridSelection.rows ? Array.from(gridSelection.rows).length : 0
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
-      <div className="mb-3 flex justify-end gap-2">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm text-slate-600">
+          {selectedCount > 0 && (
+            <span className="font-medium">
+              {selectedCount} row{selectedCount !== 1 ? 's' : ''} selected
+            </span>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
@@ -132,44 +171,36 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
           Theme: {themeMode === 'light' ? 'Light' : 'Dark'}
         </button>
       </div>
-      <DataEditor
+      <DataGridWrapper
+        rows={grid.sortedRows}
         columns={grid.columns}
-        rows={grid.rows.length}
+        theme={grid.theme}
         getCellContent={grid.getCellContent}
         getCellsForSelection={grid.getCellsForSelection}
         onCellEdited={grid.onCellEdited}
-        onHeaderMenuClick={(col, _screenRect) => {
-          const columnId = grid.columns[col]?.id as ColumnId | undefined
-          if (!columnId) return
-          // Use screenRect to position menu near header
-          const x = _screenRect.x + _screenRect.width
-          const y = _screenRect.y + _screenRect.height
-          setSortMenu({ col, x, y, columnId })
-        }}
-        rowHeight={72}
-        headerHeight={48}
-        groupHeaderHeight={40}
-        rowMarkers="both"
-        rowMarkerStartIndex={1}
-        trailingRowOptions={{ hint: 'Add row', sticky: true }}
-        onRowAppended={() => {
-          grid.addRow()
-          return undefined
-        }}
-        onDelete={(selection) => {
-          const rowsToDelete = selection.rows?.toArray?.() ?? []
-          grid.deleteRows(rowsToDelete)
-          return true
-        }}
-        freezeColumns={2}
-        smoothScrollX
-        smoothScrollY
-        overscrollX={160}
-        overscrollY={40}
-        theme={grid.theme}
+        gridSelection={gridSelection}
+        onGridSelectionChange={handleGridSelectionChange}
+        rangeSelect="cell"
+        rowSelect="multi"
+        rowSelectionMode="multi"
+        sortState={grid.sortState}
+        setSort={grid.setSort}
+        addRow={grid.addRow}
+        deleteRows={grid.deleteRows}
         customRenderers={customRenderers}
+        onColumnResize={grid.onColumnResize}
         height="80vh"
         width="100%"
+        showFooterSummary={true}
+        excludeFooterColumns={['manager', 'tags']}
+        freezeColumns={2}
+        onHeaderMenuClick={(col, screenRect) => {
+          const columnId = grid.columns[col]?.id as ColumnId | undefined
+          if (!columnId) return
+          const x = screenRect.x + screenRect.width
+          const y = screenRect.y + screenRect.height
+          setSortMenu({ col, x, y, columnId })
+        }}
       />
       {sortMenu ? (
         <div

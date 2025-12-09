@@ -1,12 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  GridCellKind,
-  type EditableGridCell,
-  type GridCell,
-  type Item,
-  type Rectangle,
-  getDefaultTheme,
-} from '@glideapps/glide-data-grid'
+import { GridCellKind, type EditableGridCell, type GridCell } from '@glideapps/glide-data-grid'
 import { format } from 'date-fns'
 
 import { blankEmployee } from '@/lib/data/employees'
@@ -19,266 +11,131 @@ import {
   employeeLightTheme,
   type ColumnId,
 } from '@/components/employee-grid-config'
+import { useDataGrid } from './use-data-grid'
 
 type ThemeVariant = 'light' | 'dark'
 
-// Helper function to realize theme fonts (combines font style + font family)
-// This mimics glide-data-grid's internal mergeAndRealizeTheme function
-function realizeThemeFonts(theme: ReturnType<typeof getDefaultTheme>) {
-  return {
-    ...theme,
-    baseFontFull: `${theme.baseFontStyle} ${theme.fontFamily}`,
-    headerFontFull: `${theme.headerFontStyle} ${theme.fontFamily}`,
-    markerFontFull: `${theme.markerFontStyle} ${theme.fontFamily}`,
-  }
-}
-
-type UseEmployeeGridResult = {
-  rows: EmployeeRow[]
-  columns: typeof employeeColumns
-  theme: ReturnType<typeof getDefaultTheme> & {
-    baseFontFull: string
-    headerFontFull: string
-    markerFontFull: string
-  }
-  getCellContent: (cell: Item) => GridCell
-  getCellsForSelection: (selection: Rectangle) => GridCell[][]
-  onCellEdited: (cell: Item, newValue: EditableGridCell) => void
-  sortState: { columnId: ColumnId | null; direction: 'asc' | 'desc' | null }
-  setSort: (columnId: ColumnId, direction: 'asc' | 'desc' | null) => void
-  addRow: () => void
-  deleteRows: (indices: number[]) => void
-}
-
-export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeVariant = 'light'): UseEmployeeGridResult {
-  const [rows, setRows] = useState<EmployeeRow[]>(() => [...initialRows])
-  const [sortState, setSortState] = useState<{ columnId: ColumnId | null; direction: 'asc' | 'desc' | null }>({
-    columnId: null,
-    direction: null,
-  })
-
-  useEffect(() => {
-    setRows([...initialRows])
-  }, [initialRows])
-
-  const theme = useMemo(() => {
-    const base = getDefaultTheme()
-    const overrides = themeVariant === 'dark' ? employeeDarkTheme : employeeLightTheme
-    const merged = { ...base, ...overrides }
-    return realizeThemeFonts(merged)
-  }, [themeVariant])
-
-  const sortedRows = useMemo(() => {
-    if (!sortState.columnId || !sortState.direction) return rows
-    const dir = sortState.direction === 'asc' ? 1 : -1
-    const col = sortState.columnId
-
-    return [...rows].sort((a, b) => {
-      const av = a[col]
-      const bv = b[col]
-
-      if (col === 'hiredAt') {
-        const ad = a.hiredAt.getTime()
-        const bd = b.hiredAt.getTime()
-        return ad === bd ? 0 : ad > bd ? dir : -dir
-      }
-
-      if (col === 'optIn') {
-        return av === bv ? 0 : av ? dir : -dir
-      }
-
-      const as = String(av ?? '').toLowerCase()
-      const bs = String(bv ?? '').toLowerCase()
-      return as === bs ? 0 : as > bs ? dir : -dir
-    })
-  }, [rows, sortState])
-
-  const getCellContent = useCallback(
-    (cell: Item): GridCell => {
-      const [col, row] = cell
-      const rowData = sortedRows[row]
-      const columnId = employeeColumns[col]?.id as ColumnId | undefined
-
-      if (!rowData || !columnId) {
-        return { kind: GridCellKind.Loading, allowOverlay: false }
-      }
-
-      switch (columnId) {
-        case 'email':
-          return {
-            kind: GridCellKind.Uri,
-            data: rowData.email,
-            displayData: rowData.email,
-            allowOverlay: true,
-            readonly: false,
-            hoverEffect: true,
+export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeVariant = 'light') {
+  return useDataGrid<EmployeeRow>(
+    initialRows,
+    {
+      columns: employeeColumns,
+      getCellContent: (rowData: EmployeeRow, columnId: string) => {
+        switch (columnId as ColumnId) {
+          case 'email':
+            return {
+              kind: GridCellKind.Uri,
+              data: rowData.email,
+              displayData: rowData.email,
+              allowOverlay: true,
+              readonly: false,
+              hoverEffect: true,
+            }
+          case 'firstName':
+            return {
+              kind: GridCellKind.Text,
+              data: rowData.firstName,
+              displayData: rowData.firstName,
+              allowOverlay: true,
+              readonly: false,
+            }
+          case 'lastName':
+            return {
+              kind: GridCellKind.Text,
+              data: rowData.lastName,
+              displayData: rowData.lastName,
+              allowOverlay: true,
+              readonly: false,
+            }
+          case 'optIn':
+            return {
+              kind: GridCellKind.Boolean,
+              data: rowData.optIn,
+              allowOverlay: false,
+              readonly: false,
+            }
+          case 'title':
+            return {
+              kind: GridCellKind.Text,
+              data: rowData.title,
+              displayData: rowData.title,
+              allowOverlay: true,
+              readonly: false,
+            }
+          case 'website':
+            return {
+              kind: GridCellKind.Uri,
+              data: rowData.website,
+              displayData: rowData.website.replace(/^https?:\/\//, ''),
+              allowOverlay: true,
+              readonly: false,
+              hoverEffect: true,
+            }
+          case 'performance':
+            return {
+              kind: GridCellKind.Custom,
+              allowOverlay: false,
+              data: {
+                kind: 'sparkline',
+                values: rowData.performance.values,
+                color: rowData.performance.color,
+              },
+              copyData: rowData.performance.values.map((v: number) => v.toFixed(2)).join(', '),
+            }
+          case 'tags': {
+            const tags = rowData.tags
+            return {
+              kind: GridCellKind.Custom,
+              allowOverlay: false,
+              data: { kind: 'tags', tags },
+              copyData: tags.join(', '),
+            }
           }
-        case 'firstName':
-          return {
-            kind: GridCellKind.Text,
-            data: rowData.firstName,
-            displayData: rowData.firstName,
-            allowOverlay: true,
-            readonly: false,
+          case 'manager':
+            return {
+              kind: GridCellKind.Custom,
+              allowOverlay: false,
+              data: {
+                kind: 'persona',
+                name: rowData.manager.name,
+                avatar: rowData.manager.avatar,
+              },
+              copyData: rowData.manager.name,
+            }
+          case 'hiredAt': {
+            const date = format(rowData.hiredAt, 'EEE MMM dd yyyy')
+            return {
+              kind: GridCellKind.Text,
+              data: date,
+              displayData: date,
+              allowOverlay: true,
+              readonly: false,
+            }
           }
-        case 'lastName':
-          return {
-            kind: GridCellKind.Text,
-            data: rowData.lastName,
-            displayData: rowData.lastName,
-            allowOverlay: true,
-            readonly: false,
-          }
-        case 'optIn':
-          return {
-            kind: GridCellKind.Boolean,
-            data: rowData.optIn,
-            allowOverlay: false,
-            readonly: false,
-          }
-        case 'title':
-          return {
-            kind: GridCellKind.Text,
-            data: rowData.title,
-            displayData: rowData.title,
-            allowOverlay: true,
-            readonly: false,
-          }
-        case 'website':
-          return {
-            kind: GridCellKind.Uri,
-            data: rowData.website,
-            displayData: rowData.website.replace(/^https?:\/\//, ''),
-            allowOverlay: true,
-            readonly: false,
-            hoverEffect: true,
-          }
-        case 'performance':
-          return {
-            kind: GridCellKind.Custom,
-            allowOverlay: false,
-            data: {
-              kind: 'sparkline',
-              values: rowData.performance.values,
-              color: rowData.performance.color,
-            },
-            copyData: rowData.performance.values.map((v: number) => v.toFixed(2)).join(', '),
-          }
-        case 'tags': {
-          const tags = rowData.tags
-          return {
-            kind: GridCellKind.Custom,
-            allowOverlay: false,
-            data: { kind: 'tags', tags },
-            copyData: tags.join(', '),
-          }
+          default:
+            return { kind: GridCellKind.Text, data: '', displayData: '', allowOverlay: false }
         }
-        case 'manager':
-          return {
-            kind: GridCellKind.Custom,
-            allowOverlay: false,
-            data: {
-              kind: 'persona',
-              name: rowData.manager.name,
-              avatar: rowData.manager.avatar,
-            },
-            copyData: rowData.manager.name,
-          }
-        case 'hiredAt': {
-          const date = format(rowData.hiredAt, 'EEE MMM dd yyyy')
-          return {
-            kind: GridCellKind.Text,
-            data: date,
-            displayData: date,
-            allowOverlay: true,
-            readonly: false,
-          }
-        }
-        default:
-          return { kind: GridCellKind.Text, data: '', displayData: '', allowOverlay: false }
-      }
-    },
-    [sortedRows]
-  )
-
-  const getCellsForSelection = useCallback(
-    (selection: Rectangle) => {
-      const output: GridCell[][] = []
-      const { x, y, width, height } = selection
-
-      for (let r = 0; r < height; r++) {
-        const row = y + r
-        const rowCells: GridCell[] = []
-
-        for (let c = 0; c < width; c++) {
-          rowCells.push(getCellContent([x + c, row]))
-        }
-
-        output.push(rowCells)
-      }
-
-      return output
-    },
-    [getCellContent]
-  )
-
-  const onCellEdited = useCallback(
-    (cell: Item, newValue: EditableGridCell) => {
-      const [col, row] = cell
-      const columnId = employeeColumns[col]?.id as ColumnId | undefined
-      if (!columnId || row < 0 || row >= rows.length) return
-
-      setRows((prev) => {
-        const next = [...prev]
-        const current = next[row]
-        if (!current) return prev
-
-        if (editableTextColumns.includes(columnId)) {
+      },
+      editableColumns: [...editableTextColumns, ...editableBooleanColumns],
+      onCellEdit: (current: EmployeeRow, columnId: string, newValue: EditableGridCell) => {
+        if (editableTextColumns.includes(columnId as ColumnId)) {
           if (newValue.kind === GridCellKind.Text || newValue.kind === GridCellKind.Uri) {
-            next[row] = { ...current, [columnId]: newValue.data as string }
+            return { ...current, [columnId]: newValue.data as string }
           }
-        } else if (editableBooleanColumns.includes(columnId)) {
+        } else if (editableBooleanColumns.includes(columnId as ColumnId)) {
           if (newValue.kind === GridCellKind.Boolean) {
-            next[row] = { ...current, optIn: Boolean(newValue.data) }
+            return { ...current, optIn: Boolean(newValue.data) }
           }
         } else if (columnId === 'hiredAt' && newValue.kind === GridCellKind.Text) {
           const parsed = new Date(newValue.data)
-          next[row] = { ...current, hiredAt: Number.isNaN(parsed.getTime()) ? current.hiredAt : parsed }
+          return { ...current, hiredAt: Number.isNaN(parsed.getTime()) ? current.hiredAt : parsed }
         }
-
-        return next
-      })
+        return current
+      },
+      blankRow: blankEmployee,
+      lightTheme: employeeLightTheme,
+      darkTheme: employeeDarkTheme,
     },
-    [rows.length, sortState]
+    themeVariant
   )
-
-  const setSort = useCallback((columnId: ColumnId, direction: 'asc' | 'desc' | null) => {
-    setSortState({ columnId, direction })
-  }, [])
-
-  const addRow = useCallback(() => {
-    setRows((prev) => {
-      const nextId = prev.length ? Math.max(...prev.map((r) => r.id)) + 1 : 1
-      return [...prev, blankEmployee(nextId)]
-    })
-  }, [])
-
-  const deleteRows = useCallback((indices: number[]) => {
-    if (!indices.length) return
-    const toDelete = new Set(indices)
-    setRows((prev) => prev.filter((_, idx) => !toDelete.has(idx)))
-  }, [])
-
-  return {
-    rows,
-    columns: employeeColumns,
-    theme,
-    getCellContent,
-    getCellsForSelection,
-    onCellEdited,
-    sortState,
-    setSort,
-    addRow,
-    deleteRows,
-  }
 }

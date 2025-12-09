@@ -1,4 +1,5 @@
-import { GridColumnIcon, type GridColumn, type Theme } from '@glideapps/glide-data-grid'
+import { GridColumnIcon, type GridColumn } from '@glideapps/glide-data-grid'
+import { gridLightTheme, gridDarkTheme } from '@/lib/grid-theme'
 
 export type ColumnId =
   | 'email'
@@ -28,80 +29,6 @@ export const employeeColumns: readonly GridColumn[] = [
 export const editableTextColumns: ColumnId[] = ['email', 'firstName', 'lastName', 'title', 'website', 'hiredAt']
 export const editableBooleanColumns: ColumnId[] = ['optIn']
 
-export const employeeLightTheme: Partial<Theme> = {
-  accentColor: '#4f46e5',
-  accentLight: '#eef2ff',
-  accentFg: '#ffffff',
-  textDark: '#0f172a',
-  textMedium: '#334155',
-  textLight: '#64748b',
-  textBubble: '#0f172a',
-  textHeader: '#111827',
-  textGroupHeader: '#0f172a',
-  textHeaderSelected: '#111827',
-  bgCell: '#ffffff',
-  bgCellMedium: '#f8fafc',
-  bgHeader: '#f6f7fb',
-  bgHeaderHasFocus: '#eef2ff',
-  bgHeaderHovered: '#eef2ff',
-  bgBubble: '#e5e7eb',
-  bgBubbleSelected: '#e5e7eb',
-  bgSearchResult: '#fef9c3',
-  borderColor: '#e5e7eb',
-  horizontalBorderColor: '#e5e7eb',
-  drilldownBorder: '#e5e7eb',
-  linkColor: '#2563eb',
-  cellHorizontalPadding: 18,
-  cellVerticalPadding: 16,
-  headerFontStyle: '600 16px',
-  headerIconSize: 18,
-  baseFontStyle: '400 16px',
-  markerFontStyle: '600 16px',
-  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
-  editorFontSize: '16px',
-  lineHeight: 1.35,
-  headerBottomBorderColor: '#e5e7eb',
-  resizeIndicatorColor: '#94a3b8',
-  bgIconHeader: '#e2e8f0',
-  fgIconHeader: '#475569',
-  roundingRadius: 8,
-}
-
-export const employeeDarkTheme: Partial<Theme> = {
-  accentColor: '#8c96ff',
-  accentLight: 'rgba(102, 106, 145, 0.153)',
-  accentFg: '#000000',
-  textDark: '#ffffff',
-  textMedium: '#b8b8b8',
-  textLight: '#a0a0a0',
-  textBubble: '#ffffff',
-  textHeader: '#a1a1a1',
-  textGroupHeader: '#a1a1a1',
-  textHeaderSelected: '#000000',
-  bgCell: '#16161b',
-  bgCellMedium: '#202027',
-  bgHeader: '#212121',
-  bgHeaderHasFocus: '#151515',
-  bgHeaderHovered: '#101010',
-  bgBubble: '#212121',
-  bgBubbleSelected: '#000000',
-  bgSearchResult: '#423c24',
-  borderColor: 'rgba(225,225,225,0.2)',
-  horizontalBorderColor: 'rgba(225,225,225,0.2)',
-  drilldownBorder: 'rgba(225,225,225,0.4)',
-  linkColor: '#4F5DFF',
-  cellHorizontalPadding: 8,
-  cellVerticalPadding: 3,
-  headerFontStyle: '600 16px',
-  headerIconSize: 18,
-  baseFontStyle: '400 16px',
-  markerFontStyle: '600 16px',
-  fontFamily: 'Inter, Roboto, -apple-system, BlinkMacSystemFont, avenir next, avenir, segoe ui, helvetica neue, helvetica, Ubuntu, noto, arial, sans-serif',
-  editorFontSize: '16px',
-  lineHeight: 1.35,
-  headerBottomBorderColor: 'rgba(225,225,225,0.2)',
-  resizeIndicatorColor: '#94a3b8',
-  bgIconHeader: '#b8b8b8',
-  fgIconHeader: '#000000',
-  roundingRadius: 8,
-}
+// Use improved themes from grid-theme
+export const employeeLightTheme = gridLightTheme
+export const employeeDarkTheme = gridDarkTheme

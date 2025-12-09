@@ -2,19 +2,25 @@
 
 import { GridCellKind, type CustomCell, type CustomRenderer } from '@glideapps/glide-data-grid'
 
-type TagsCell = CustomCell<{ kind: 'tags'; tags: string[] }>
+export type TagsCell = CustomCell<{
+  kind: 'tags'
+  tags: string[]
+  colorMap?: Record<string, { bg: string; text: string }>
+}>
 
 const pillPaddingX = 8
-const pillPaddingY = 6
-const pillGap = 8
-const pillRadius = 12
+const pillPaddingY = 5
+const pillGap = 6
+const pillRadius = 10
 
 export const tagsRenderer: CustomRenderer<TagsCell> = {
   kind: GridCellKind.Custom,
-  isMatch: (cell): cell is TagsCell => cell.kind === GridCellKind.Custom && (cell.data as any).kind === 'tags',
+  isMatch: (cell): cell is TagsCell =>
+    cell.kind === GridCellKind.Custom && (cell.data as any).kind === 'tags',
   draw: (args, cell) => {
     const { ctx, rect, theme, cellFillColor } = args
     const tags = cell.data.tags ?? []
+    const colorMap = cell.data.colorMap
 
     if (cellFillColor) {
       ctx.fillStyle = cellFillColor
@@ -34,23 +40,24 @@ export const tagsRenderer: CustomRenderer<TagsCell> = {
       const text = tags[i]
       const textWidth = ctx.measureText(text).width
       const pillWidth = textWidth + pillPaddingX * 2
-      const pillHeight = 24
+      const pillHeight = 22
 
       if (x + pillWidth > maxX) break
 
-      // pill
-      ctx.fillStyle = '#e5e7eb'
+      // Get colors from map or use defaults
+      const colors = colorMap?.[text] ?? { bg: '#E5E7EB', text: theme.textDark }
+
+      // Draw pill background
+      ctx.fillStyle = colors.bg
       ctx.beginPath()
       ctx.roundRect(x, y - pillHeight / 2, pillWidth, pillHeight, pillRadius)
       ctx.fill()
 
-      // text
-      ctx.fillStyle = theme.textDark
+      // Draw text
+      ctx.fillStyle = colors.text
       ctx.fillText(text, x + pillPaddingX, y)
 
       x += pillWidth + pillGap
     }
   },
 }
-
-export type { TagsCell }

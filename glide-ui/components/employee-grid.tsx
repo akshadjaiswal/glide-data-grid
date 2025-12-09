@@ -30,7 +30,8 @@ const sparklineRenderer: CustomRenderer<SparklineCell> = {
 
     if (cellFillColor) {
       ctx.fillStyle = cellFillColor
-      ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+      // Leave 1px gutter so the grid borders remain visible
+      ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
     }
 
     if (!values.length) return
@@ -78,7 +79,8 @@ const personaRenderer: CustomRenderer<PersonaCell> = {
     const { ctx, rect, theme, cellFillColor, col, row, imageLoader, requestAnimationFrame } = args
     if (cellFillColor) {
       ctx.fillStyle = cellFillColor
-      ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+      // Leave 1px gutter so the grid borders remain visible
+      ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
     }
 
     const size = Math.min(rect.height - 14, 40)

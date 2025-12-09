@@ -18,7 +18,8 @@ export const tagsRenderer: CustomRenderer<TagsCell> = {
 
     if (cellFillColor) {
       ctx.fillStyle = cellFillColor
-      ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+      // Leave a 1px gutter so grid borders stay visible under hover/selection
+      ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
     }
 
     if (!tags.length) return

@@ -12,6 +12,7 @@ import {
   type ColumnId,
 } from '@/components/employee-grid-config'
 import { useDataGrid } from './use-data-grid'
+import { generateTagColorMap } from '@/lib/tag-colors'
 
 type ThemeVariant = 'light' | 'dark'
 
@@ -87,7 +88,11 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
             return {
               kind: GridCellKind.Custom,
               allowOverlay: false,
-              data: { kind: 'tags', tags },
+              data: {
+                kind: 'tags',
+                tags,
+                colorMap: generateTagColorMap(tags), // Generate vibrant, consistent colors
+              },
               copyData: tags.join(', '),
             }
           }

@@ -63,9 +63,9 @@ export const gridDarkTheme: Partial<Theme> = {
   bgBubble: '#27272A',
   bgBubbleSelected: '#3F3F46',
   bgSearchResult: '#713f12',
-  borderColor: 'rgba(36, 31, 47, 0.12)',
-  horizontalBorderColor: 'rgba(36, 31, 47, 0.12)',
-  drilldownBorder: 'rgba(36, 31, 47, 0.12)',
+  borderColor: 'rgba(255, 255, 255, 0.15)', // Light borders for dark mode
+  horizontalBorderColor: 'rgba(255, 255, 255, 0.15)', // Light borders for dark mode
+  drilldownBorder: 'rgba(255, 255, 255, 0.2)', // Slightly more visible
   linkColor: '#60A5FA',
   cellHorizontalPadding: 12,
   cellVerticalPadding: 8,

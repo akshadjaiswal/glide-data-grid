@@ -45,8 +45,14 @@ export const tagsRenderer: CustomRenderer<TagsCell> = {
 
       if (x + pillWidth > maxX) break
 
-      // Get colors from map or use defaults
-      const colors = colorMap?.[text] ?? { bg: '#E5E7EB', text: theme.textDark }
+      // Detect dark mode by checking theme background
+      const isDarkMode = theme.bgCell === '#09090B' || (theme.bgCell as string).toLowerCase().includes('09090')
+
+      // Get colors from map or use theme-aware defaults
+      const colors = colorMap?.[text] ?? {
+        bg: isDarkMode ? '#3F3F46' : '#E5E7EB', // Dark gray for dark mode, light gray for light
+        text: theme.textDark,
+      }
 
       // Draw pill background
       ctx.fillStyle = colors.bg

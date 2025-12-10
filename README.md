@@ -1,6 +1,6 @@
 # Glide UI
 
-> A focused playground for Glide Data Grid—grouped headers, custom cells, inline editing, and a polished shell you can lift into your next internal tool.
+> A production-ready, feature-rich implementation of Glide Data Grid with advanced features like footer summaries, custom renderers, dropdown editors, and a modular architecture for enterprise applications.
 
 [![Next.js](https://img.shields.io/badge/Next.js-14.2-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-18-blue?style=flat-square&logo=react)](https://react.dev/)
@@ -11,22 +11,57 @@
 ---
 
 ## Why this exists
-I was integrating Glide Data Grid into a larger, brownfield codebase and needed a clean sandbox to iterate quickly—without fighting legacy constraints. This project is that starter:
-- Minimal surface area to test Glide features safely.
-- Ready-made grouped headers, frozen columns, custom cells, and editing callbacks.
-- Modular structure so you can drop the grid into bigger apps with confidence.
+Built from real-world requirements integrating Glide Data Grid into production applications. This project showcases advanced patterns and features inspired by enterprise tools:
+- **Reusable DataGridWrapper** component with footer aggregations
+- **Generic useDataGrid hook** that works with any data type
+- **Advanced custom renderers** with proper theming and borders
+- **Dropdown editors** for custom cell types
+- **Modular architecture** for scalability and maintenance
 
-Use this as a reference or a base to build the exact grid experience your product needs.
+Perfect for building internal tools, admin dashboards, and data-heavy applications.
 
 ---
 
-## ✨ What’s inside
-- **Rich grid UX**: Grouped headers, frozen columns, row markers, smooth scroll, copy-friendly selection.
-- **Custom cells**: Canvas sparklines for performance trends; persona cells for manager avatars + names.
-- **Inline editing**: Text, URL, boolean, and date edits handled via Glide’s callbacks.
-- **Typed dummy data**: 50 generated employee rows (titles, links, performance series, managers, hire dates).
-- **Polished shell**: Hero + CTA landing, dedicated grid route, custom favicon, enlarged typography.
-- **Modular by design**: Config + hook separate columns, theme, and state so you can extend safely.
+## ✨ Enhanced Features
+
+### Core Grid Features
+- **Rich grid UX**: Grouped headers, frozen columns, row markers, smooth scroll, copy-friendly selection
+- **Better density**: Compact 35px rows (vs 72px) for more data on screen
+- **Proper borders**: 1px cell gutters that preserve borders under hover/selection
+- **Column resizing**: Persistent column width adjustments
+- **Single-click multi-select**: Improved selection UX
+
+### Footer Summary System 🆕
+- **Aggregations**: Count, Sum, Average, Min, Max, Percentages
+- **Per-column configuration**: Choose different calculations for each column
+- **Automatic type detection**: Numeric vs non-numeric columns
+- **Synchronized scrolling**: Footer follows grid horizontal scroll
+
+### Advanced Custom Cells
+- **Enhanced tags renderer**: With color mapping support
+- **Sparkline charts**: Performance trends with canvas rendering
+- **Persona cells**: Manager avatars with names
+- **Dropdown editors**: For funnel stages, revenue tiers, and custom categories
+
+### Developer Experience
+- **Generic hook system**: Reusable for any data type, not just employees
+- **Modular components**: DataGridWrapper, custom renderers, dropdown editors
+- **Type-safe**: Full TypeScript support with proper generics
+- **Themeable**: Light/dark modes with improved color contrast
+
+---
+
+## 🎯 New in This Version
+
+This implementation brings production-grade features inspired by real-world applications:
+
+1. **DataGridWrapper Component**: Reusable wrapper with footer summaries, aggregations, and dynamic row markers
+2. **Generic useDataGrid Hook**: Works with any data type `<T>`, not hardcoded to specific schemas
+3. **Footer Summary System**: Add calculations (sum, average, count, etc.) to any column
+4. **Enhanced Themes**: Better borders, improved density, proper color contrast
+5. **Modular Architecture**: Easy to extend with new renderers and editors
+6. **Dropdown Editors**: Pre-built editors for status fields, categories, and more
+7. **Better Performance**: Visible region tracking and optimized rendering
 
 ---
 

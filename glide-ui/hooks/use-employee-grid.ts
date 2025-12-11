@@ -108,13 +108,26 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
               copyData: rowData.manager.name,
             }
           case 'hiredAt': {
-            const date = format(rowData.hiredAt, 'EEE MMM dd yyyy')
+            // Validate date before formatting
+            const dateValue = rowData.hiredAt
+            const isValidDate = dateValue instanceof Date && !isNaN(dateValue.getTime())
+
+            const displayDate = isValidDate
+              ? format(dateValue, 'EEE MMM dd yyyy')
+              : 'Invalid Date'
+
+            console.log('[hiredAt Cell] Creating cell for:', displayDate, 'isValid:', isValidDate)
+
             return {
-              kind: GridCellKind.Text,
-              data: date,
-              displayData: date,
+              kind: GridCellKind.Custom,
+              data: {
+                kind: 'date',
+                date: isValidDate ? dateValue : null,
+              },
+              displayData: displayDate,
               allowOverlay: true,
               readonly: false,
+              copyData: displayDate,
             }
           }
           default:
@@ -131,9 +144,17 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
           if (newValue.kind === GridCellKind.Boolean) {
             return { ...current, optIn: Boolean(newValue.data) }
           }
-        } else if (columnId === 'hiredAt' && newValue.kind === GridCellKind.Text) {
-          const parsed = new Date(newValue.data)
-          return { ...current, hiredAt: Number.isNaN(parsed.getTime()) ? current.hiredAt : parsed }
+        } else if (columnId === 'hiredAt' && newValue.kind === GridCellKind.Custom) {
+          // Extract date from custom cell
+          const newDate = (newValue.data as any).date
+
+          // Strict validation - only accept valid Date objects
+          if (newDate instanceof Date && !isNaN(newDate.getTime())) {
+            return { ...current, hiredAt: newDate }
+          }
+
+          // Reject invalid dates, keep current value
+          return current
         }
         return current
       },

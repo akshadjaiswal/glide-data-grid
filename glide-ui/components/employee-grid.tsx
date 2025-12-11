@@ -16,6 +16,8 @@ import { useEmployeeGrid } from '@/hooks/use-employee-grid'
 import { SortMenu } from './sort-menu'
 import type { ColumnId } from './employee-grid-config'
 import { tagsRenderer } from './tags-cell-renderer'
+import { dateCellRenderer } from './renderers/date-cell-renderer'
+import { createDatePickerEditor } from './editors/date-picker-overlay-editor'
 import { DataGridWrapper } from './data-grid-wrapper'
 
 type SparklineCell = CustomCell<{ kind: 'sparkline'; values: readonly number[]; color: string }>
@@ -120,7 +122,8 @@ type EmployeeGridProps = {
 export function EmployeeGrid({ rows }: EmployeeGridProps) {
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light')
   const grid = useEmployeeGrid(rows, themeMode)
-  const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer, tagsRenderer], [])
+  const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer, tagsRenderer, dateCellRenderer], [])
+  const datePickerEditor = useMemo(() => createDatePickerEditor(), [])
   const [sortMenu, setSortMenu] = useState<{ col: number; x: number; y: number; columnId: ColumnId } | null>(null)
 
   // Grid selection state for row checkboxes
@@ -188,6 +191,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
         addRow={grid.addRow}
         deleteRows={grid.deleteRows}
         customRenderers={customRenderers}
+        provideEditor={datePickerEditor}
         onColumnResize={grid.onColumnResize}
         height="80vh"
         width="100%"

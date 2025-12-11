@@ -26,7 +26,7 @@ export const employeeColumns: readonly GridColumn[] = [
   { id: 'hiredAt', title: 'Hired', group: 'Employment Data', width: 180, icon: GridColumnIcon.HeaderDate },
 ]
 
-export const editableTextColumns: ColumnId[] = ['email', 'firstName', 'lastName', 'title', 'website', 'hiredAt']
+export const editableTextColumns: ColumnId[] = ['email', 'firstName', 'lastName', 'title', 'website']
 export const editableBooleanColumns: ColumnId[] = ['optIn']
 
 // Use improved themes from grid-theme

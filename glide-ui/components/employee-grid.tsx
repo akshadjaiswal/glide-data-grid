@@ -194,6 +194,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
         showFooterSummary={true}
         excludeFooterColumns={['manager', 'tags']}
         freezeColumns={2}
+        themeVariant={themeMode}
         onHeaderMenuClick={(col, screenRect) => {
           const columnId = grid.columns[col]?.id as ColumnId | undefined
           if (!columnId) return

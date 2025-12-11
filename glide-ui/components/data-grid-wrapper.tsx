@@ -9,6 +9,13 @@ import {
   type ProvideEditorCallback,
 } from '@glideapps/glide-data-grid'
 import type { Item, EditableGridCell, Rectangle } from '@glideapps/glide-data-grid'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 type AggregationType =
   | 'countEmpty'
@@ -30,7 +37,6 @@ const NUMERIC_AGG_OPTIONS: { label: string; value: AggregationType }[] = [
   { label: 'Average', value: 'average' },
   { label: 'Min', value: 'min' },
   { label: 'Max', value: 'max' },
-  { label: 'None', value: 'none' },
 ]
 
 const NON_NUMERIC_AGG_OPTIONS: { label: string; value: AggregationType }[] = [
@@ -38,7 +44,6 @@ const NON_NUMERIC_AGG_OPTIONS: { label: string; value: AggregationType }[] = [
   { label: 'Count filled', value: 'countFilled' },
   { label: 'Percent empty', value: 'percentEmpty' },
   { label: 'Percent filled', value: 'percentFilled' },
-  { label: 'None', value: 'none' },
 ]
 
 export type DataGridWrapperProps<T extends { id: number }> = {
@@ -69,6 +74,7 @@ export type DataGridWrapperProps<T extends { id: number }> = {
   excludeFooterColumns?: string[]
   freezeColumns?: number
   onHeaderMenuClick?: (col: number, screenRect: Rectangle) => void
+  themeVariant?: 'light' | 'dark'
 }
 
 export function DataGridWrapper<T extends { id: number }>({
@@ -99,6 +105,7 @@ export function DataGridWrapper<T extends { id: number }>({
   excludeFooterColumns = [],
   freezeColumns = 2,
   onHeaderMenuClick,
+  themeVariant = 'light',
 }: DataGridWrapperProps<T>) {
   const memoizedRenderers = useMemo(() => customRenderers, [customRenderers])
   const rowMarkerTheme = useMemo(
@@ -153,7 +160,7 @@ export function DataGridWrapper<T extends { id: number }>({
   )
 
   const footerButtonClasses =
-    'flex h-full w-full items-center justify-center rounded-md px-1 text-[13px] font-medium text-slate-700 transition hover:bg-slate-100 leading-none truncate'
+    'flex h-full w-full items-center justify-center rounded-md px-1 text-[13px] font-medium text-foreground transition hover:bg-muted leading-none truncate'
 
   const isNumericColumn = useCallback(
     (col: GridColumn | undefined) => {
@@ -335,24 +342,35 @@ export function DataGridWrapper<T extends { id: number }>({
                   key={col.id ?? idx}
                   className="flex h-full items-center border-r border-transparent px-2 min-w-0"
                 >
-                  <select
-                    className={footerButtonClasses}
-                    value={selected}
-                    onChange={(e) =>
-                      setColumnAggregations((prev) => ({
-                        ...prev,
-                        [colId as string]: e.target.value as AggregationType,
-                      }))
-                    }
-                  >
-                    <option value="none">+ Add calculation</option>
-                    {options.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  {value && <span className="ml-1 text-xs font-semibold">{value}</span>}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className={footerButtonClasses}>
+                        {value ? (
+                          <span className="truncate">
+                            {value} {label && <span className="text-muted-foreground lowercase">{label}</span>}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium">+ Add calculation</span>
+                        )}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-44">
+                      <DropdownMenuLabel>Aggregations</DropdownMenuLabel>
+                      {options.map((opt) => (
+                        <DropdownMenuItem
+                          key={opt.value}
+                          onClick={() =>
+                            setColumnAggregations((prev) => ({
+                              ...prev,
+                              [colId as string]: opt.value,
+                            }))
+                          }
+                        >
+                          {opt.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )
             })}
@@ -390,24 +408,35 @@ export function DataGridWrapper<T extends { id: number }>({
                     key={col.id ?? idx}
                     className="flex h-full items-center border-r border-transparent px-2 min-w-0"
                   >
-                    <select
-                      className={footerButtonClasses}
-                      value={selected}
-                      onChange={(e) =>
-                        setColumnAggregations((prev) => ({
-                          ...prev,
-                          [colId as string]: e.target.value as AggregationType,
-                        }))
-                      }
-                    >
-                      <option value="none">+ Add calculation</option>
-                      {options.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                    {value && <span className="ml-1 text-xs font-semibold">{value}</span>}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className={footerButtonClasses}>
+                          {value ? (
+                            <span className="truncate">
+                              {value} {label && <span className="text-muted-foreground lowercase">{label}</span>}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium">+ Add calculation</span>
+                          )}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-44">
+                        <DropdownMenuLabel>Aggregations</DropdownMenuLabel>
+                        {options.map((opt) => (
+                          <DropdownMenuItem
+                            key={opt.value}
+                            onClick={() =>
+                              setColumnAggregations((prev) => ({
+                                ...prev,
+                                [colId as string]: opt.value,
+                              }))
+                            }
+                          >
+                            {opt.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )
               })}

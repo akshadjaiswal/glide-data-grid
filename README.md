@@ -90,22 +90,6 @@ No env vars required for the demo; dummy data is bundled.
 
 ---
 
-## 📁 Project map (key bits)
-```
-app/
-  page.tsx                # Landing page with CTA
-  grid/page.tsx           # Grid demo route (client-only)
-components/
-  employee-grid.tsx       # Thin UI wrapper for DataEditor + renderers
-  employee-grid-config.ts # Columns, editable flags, theme overrides
-hooks/
-  use-employee-grid.ts    # Grid state, theme realization, editing logic
-lib/data/employees.ts     # 50-row typed dummy dataset
-public/favicon.svg        # Custom favicon
-```
-
----
-
 ## 🧭 Feature deep dive
 - **Grouped headers & freeze**: Keeps context when scrolling wide datasets.
 - **Custom cells**: Sparklines (canvas) for performance; persona cells for manager avatars + names.

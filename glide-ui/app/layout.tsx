@@ -6,8 +6,8 @@ const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '600'] }
 import { QueryProvider } from '@/lib/query-provider'
 
 export const metadata: Metadata = {
-  title: 'glide-ui',
-  description: 'Built with DevStart CLI',
+  title: 'Glide Data Grid Demo',
+  description: 'A Next.js playground showcasing Glide Data Grid with custom cells, theming, and virtualized performance.',
   icons: {
     icon: '/favicon.svg',
   },

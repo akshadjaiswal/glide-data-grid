@@ -132,23 +132,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
   // Handle grid selection change
   const handleGridSelectionChange = useCallback((newSelection: GridSelection) => {
     setGridSelection(newSelection)
-
-    // Optional: extract selected rows for debugging or external use
-    const selectedRows: EmployeeRow[] = []
-    if (newSelection.rows) {
-      const rowsArray = Array.from(newSelection.rows)
-      rowsArray.forEach((rowIndex) => {
-        if (grid.sortedRows[rowIndex]) {
-          selectedRows.push(grid.sortedRows[rowIndex])
-        }
-      })
-    }
-
-    // You can use selectedRows here or pass to parent component
-    if (selectedRows.length > 0) {
-      console.log('Selected rows:', selectedRows)
-    }
-  }, [grid.sortedRows])
+  }, [])
 
   // Calculate selected count for display
   const selectedCount = gridSelection.rows ? Array.from(gridSelection.rows).length : 0

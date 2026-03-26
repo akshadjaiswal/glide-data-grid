@@ -10,13 +10,20 @@ import {
 } from '@glideapps/glide-data-grid'
 import '@glideapps/glide-data-grid/dist/index.css'
 import 'react-responsive-carousel/lib/styles/carousel.min.css'
+import { format } from 'date-fns'
 
 import type { EmployeeRow } from '@/lib/data/employees'
 import { useEmployeeGrid } from '@/hooks/use-employee-grid'
 import { SortMenu } from './sort-menu'
-import type { ColumnId } from './employee-grid-config'
+import { employeeColumns, type ColumnId } from './employee-grid-config'
 import { tagsRenderer } from './tags-cell-renderer'
 import { DataGridWrapper } from './data-grid-wrapper'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 type SparklineCell = CustomCell<{ kind: 'sparkline'; values: readonly number[]; color: string }>
 type PersonaCell = CustomCell<{ kind: 'persona'; name: string; avatar: string }>
@@ -113,6 +120,38 @@ const personaRenderer: CustomRenderer<PersonaCell> = {
   },
 }
 
+// CSV export helper
+function exportCSV(rows: EmployeeRow[]) {
+  const headers = ['ID', 'Email', 'First Name', 'Last Name', 'Opt-In', 'Title', 'Website', 'Hired At', 'Tags', 'Manager']
+  const lines = rows.map((r) =>
+    [
+      r.id,
+      r.email,
+      r.firstName,
+      r.lastName,
+      r.optIn,
+      r.title,
+      r.website,
+      format(r.hiredAt, 'yyyy-MM-dd'),
+      r.tags.join(';'),
+      r.manager.name,
+    ]
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(',')
+  )
+  const csv = [headers.join(','), ...lines].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'employees.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const toolbarButtonClass =
+  'rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition motion-safe:hover:-translate-y-[1px] hover:border-slate-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'
+
 type EmployeeGridProps = {
   rows: EmployeeRow[]
 }
@@ -121,11 +160,13 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light')
   const grid = useEmployeeGrid(rows, themeMode)
 
+  // Theme toggle — also syncs Tailwind dark class on <html>
   const toggleTheme = useCallback(() => {
     const next = themeMode === 'light' ? 'dark' : 'light'
     setThemeMode(next)
     document.documentElement.classList.toggle('dark', next === 'dark')
   }, [themeMode])
+
   const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer, tagsRenderer], [])
   const [sortMenu, setSortMenu] = useState<{ col: number; x: number; y: number; columnId: ColumnId } | null>(null)
 
@@ -135,17 +176,52 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
     rows: CompactSelection.empty(),
   })
 
-  // Handle grid selection change
   const handleGridSelectionChange = useCallback((newSelection: GridSelection) => {
     setGridSelection(newSelection)
   }, [])
 
-  // Calculate selected count for display
   const selectedCount = gridSelection.rows ? Array.from(gridSelection.rows).length : 0
+
+  // Feature 2: Column visibility — track hidden column IDs
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set())
+
+  const toggleColumn = useCallback((colId: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev)
+      if (next.has(colId)) next.delete(colId)
+      else next.add(colId)
+      return next
+    })
+  }, [])
+
+  // Feature 4: Sort indicator — append ↑/↓ to sorted column title
+  const displayColumns = useMemo(
+    () =>
+      grid.columns
+        .filter((col) => !hiddenColumns.has(col.id as string))
+        .map((col) => {
+          if (col.id !== grid.sortState.columnId) return col
+          const arrow = grid.sortState.direction === 'asc' ? ' ↑' : ' ↓'
+          return { ...col, title: col.title + arrow }
+        }),
+    [grid.columns, grid.sortState, hiddenColumns]
+  )
+
+  // Feature 5: Row highlight — dim opted-out rows via getRowThemeOverride
+  const getRowThemeOverride = useCallback(
+    (row: number) => {
+      const r = grid.sortedRows[row]
+      if (!r || r.optIn) return undefined
+      return themeMode === 'dark'
+        ? { bgCell: '#141418' as string, textDark: '#6b7280' as string }
+        : { bgCell: '#f9fafb' as string, textDark: '#9ca3af' as string }
+    },
+    [grid.sortedRows, themeMode]
+  )
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-slate-600">
           {selectedCount > 0 && (
             <span className="font-medium">
@@ -153,17 +229,59 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition motion-safe:hover:-translate-y-[1px] hover:border-slate-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-        >
-          Theme: {themeMode === 'light' ? 'Light' : 'Dark'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Feature 2: Column visibility toggle */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className={toolbarButtonClass} aria-label="Toggle column visibility">
+                Columns{hiddenColumns.size > 0 ? ` (${hiddenColumns.size} hidden)` : ''}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-52 p-2" align="end">
+              <DropdownMenuLabel className="text-xs uppercase tracking-wide text-slate-500">Show / Hide</DropdownMenuLabel>
+              <div className="mt-1 space-y-0.5">
+                {employeeColumns.map((col) => (
+                  <label
+                    key={col.id}
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!hiddenColumns.has(col.id as string)}
+                      onChange={() => toggleColumn(col.id as string)}
+                      className="accent-slate-800"
+                    />
+                    {col.title}
+                  </label>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Feature 3: Export CSV */}
+          <button
+            type="button"
+            onClick={() => exportCSV(grid.sortedRows)}
+            className={toolbarButtonClass}
+            aria-label="Export grid data as CSV"
+          >
+            Export CSV
+          </button>
+
+          {/* Theme toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className={toolbarButtonClass}
+          >
+            Theme: {themeMode === 'light' ? 'Light' : 'Dark'}
+          </button>
+        </div>
       </div>
+
       <DataGridWrapper
         rows={grid.sortedRows}
-        columns={grid.columns}
+        columns={displayColumns}
         theme={grid.theme}
         getCellContent={grid.getCellContent}
         getCellsForSelection={grid.getCellsForSelection}
@@ -185,14 +303,16 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
         excludeFooterColumns={['manager', 'tags']}
         freezeColumns={2}
         themeVariant={themeMode}
+        getRowThemeOverride={getRowThemeOverride}
         onHeaderMenuClick={(col, screenRect) => {
-          const columnId = grid.columns[col]?.id as ColumnId | undefined
+          const columnId = displayColumns[col]?.id as ColumnId | undefined
           if (!columnId) return
           const x = screenRect.x + screenRect.width
           const y = screenRect.y + screenRect.height
           setSortMenu({ col, x, y, columnId })
         }}
       />
+
       {sortMenu ? (
         <div
           className="fixed z-50"

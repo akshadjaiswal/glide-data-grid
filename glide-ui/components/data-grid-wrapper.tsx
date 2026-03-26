@@ -7,6 +7,7 @@ import {
   type GridCell,
   type GridColumn,
   type ProvideEditorCallback,
+  type Theme,
 } from '@glideapps/glide-data-grid'
 import type { Item, EditableGridCell, Rectangle } from '@glideapps/glide-data-grid'
 import {
@@ -75,6 +76,7 @@ export type DataGridWrapperProps<T extends { id: number }> = {
   freezeColumns?: number
   onHeaderMenuClick?: (col: number, screenRect: Rectangle) => void
   themeVariant?: 'light' | 'dark'
+  getRowThemeOverride?: (row: number) => Partial<Theme> | undefined
 }
 
 export function DataGridWrapper<T extends { id: number }>({
@@ -106,6 +108,7 @@ export function DataGridWrapper<T extends { id: number }>({
   freezeColumns = 2,
   onHeaderMenuClick,
   themeVariant = 'light',
+  getRowThemeOverride,
 }: DataGridWrapperProps<T>) {
   const memoizedRenderers = useMemo(() => customRenderers, [customRenderers])
   const rowMarkerTheme = useMemo(
@@ -305,6 +308,7 @@ export function DataGridWrapper<T extends { id: number }>({
           overscrollY={40}
           theme={theme}
           customRenderers={memoizedRenderers}
+          getRowThemeOverride={getRowThemeOverride}
           height="100%"
           width="100%"
         />

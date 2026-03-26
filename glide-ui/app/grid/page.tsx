@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
 import { buildEmployees, employees as defaultEmployees } from '@/lib/data/employees'
 
@@ -12,13 +12,10 @@ const EmployeeGrid = dynamic(() => import('@/components/employee-grid').then((m)
 
 export default function GridPage() {
   const [data, setData] = useState(defaultEmployees)
-  const pageMeta = useMemo(
-    () => ({
-      title: 'Team Directory',
-      description: '50-row demo showcasing Glide Data Grid with grouped headers, custom cells, and rich data types.',
-    }),
-    []
-  )
+  const pageMeta = {
+    title: 'Team Directory',
+    description: '50-row demo showcasing Glide Data Grid with grouped headers, custom cells, and rich data types.',
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-white">
@@ -37,14 +34,14 @@ export default function GridPage() {
           <div className="flex flex-col gap-3 text-sm text-slate-600">
             <Link
               href="/"
-              className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 shadow-sm transition hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-md"
+              className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 shadow-sm transition motion-safe:hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-md"
             >
               ← Back to home
             </Link>
             <button
               type="button"
               onClick={() => setData(buildEmployees(50, Date.now()))}
-              className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white shadow-sm transition hover:-translate-y-[1px] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+              className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white shadow-sm transition motion-safe:hover:-translate-y-[1px] motion-safe:hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
             >
               Refresh sample data
             </button>

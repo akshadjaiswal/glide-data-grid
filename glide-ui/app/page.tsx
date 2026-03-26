@@ -18,13 +18,13 @@ export default function Home() {
           <div className="flex flex-wrap items-center gap-4">
             <Link
               href="/grid"
-              className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-white/20 transition hover:-translate-y-[2px] hover:shadow-xl hover:shadow-white/30"
+              className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-white/20 transition motion-safe:hover:-translate-y-[2px] hover:shadow-xl hover:shadow-white/30"
             >
               Launch the grid demo
             </Link>
             <a
               href="#capabilities"
-              className="inline-flex items-center justify-center rounded-xl border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-[2px] hover:border-white/30 hover:bg-white/5"
+              className="inline-flex items-center justify-center rounded-xl border border-white/20 px-5 py-3 text-sm font-semibold text-white transition motion-safe:hover:-translate-y-[2px] hover:border-white/30 hover:bg-white/5"
             >
               See what&apos;s included
             </a>
@@ -84,13 +84,13 @@ export default function Home() {
             <div className="mt-6 flex flex-wrap gap-3 text-sm">
               <Link
                 href="/grid"
-                className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-3 text-slate-900 shadow-lg shadow-white/20 transition hover:-translate-y-[2px] hover:shadow-xl hover:shadow-white/30"
+                className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-3 text-slate-900 shadow-lg shadow-white/20 transition motion-safe:hover:-translate-y-[2px] hover:shadow-xl hover:shadow-white/30"
               >
                 Open the grid
               </Link>
               <a
                 href="https://github.com/akshadjaiswal/devstart"
-                className="inline-flex items-center justify-center rounded-xl border border-white/20 px-4 py-3 text-white transition hover:-translate-y-[2px] hover:border-white/30 hover:bg-white/5"
+                className="inline-flex items-center justify-center rounded-xl border border-white/20 px-4 py-3 text-white transition motion-safe:hover:-translate-y-[2px] hover:border-white/30 hover:bg-white/5"
                 target="_blank"
                 rel="noopener noreferrer"
               >

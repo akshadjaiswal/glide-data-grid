@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { buildEmployees, employees as defaultEmployees } from '@/lib/data/employees'
 
@@ -12,10 +12,25 @@ const EmployeeGrid = dynamic(() => import('@/components/employee-grid').then((m)
 
 export default function GridPage() {
   const [data, setData] = useState(defaultEmployees)
+  const [search, setSearch] = useState('')
   const pageMeta = {
     title: 'Team Directory',
     description: '50-row demo showcasing Glide Data Grid with grouped headers, custom cells, and rich data types.',
   }
+
+  // Feature 1: Filter rows by search query across name, email, title, and tags
+  const filteredData = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return data
+    return data.filter(
+      (r) =>
+        r.firstName.toLowerCase().includes(q) ||
+        r.lastName.toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q) ||
+        r.title.toLowerCase().includes(q) ||
+        r.tags.some((t) => t.toLowerCase().includes(q))
+    )
+  }, [data, search])
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-white">
@@ -49,21 +64,38 @@ export default function GridPage() {
         </header>
 
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Grid Preview</p>
               <p className="text-sm text-slate-600">
-                Interactive data grid powered by @glideapps/glide-data-grid with custom sparkline & manager personas.
+                Interactive data grid powered by @glideapps/glide-data-grid with custom sparkline &amp; manager personas.
               </p>
             </div>
-            <div className="hidden rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-700 md:inline-flex">
-              Optimized for large data with virtualization
+            <div className="flex items-center gap-3">
+              {/* Feature 1: Search bar */}
+              <div className="relative">
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search name, email, title, tags…"
+                  aria-label="Search employees"
+                  className="w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                />
+                {search && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                    {filteredData.length} / {data.length}
+                  </span>
+                )}
+              </div>
+              <div className="hidden rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-700 md:inline-flex">
+                Virtualized
+              </div>
             </div>
           </div>
 
-          {/* <<< FIX: Give the grid a height >>> */}
           <div className="h-[650px] w-full">
-            <EmployeeGrid rows={data} />
+            <EmployeeGrid rows={filteredData} />
           </div>
         </section>
       </div>

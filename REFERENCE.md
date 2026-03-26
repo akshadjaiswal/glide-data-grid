@@ -5,12 +5,14 @@ Tone: concise, prescriptive, and opinionated about separation of concerns.
 
 ----------------------------------------------------------------------
 High-level anatomy (what to copy first)
-- Grid wrapper UI: components/employee-grid.tsx
+- Grid page: app/grid/page.tsx (search bar, data state, dynamic import of EmployeeGrid)
+- Grid wrapper UI: components/employee-grid.tsx (toolbar: search result display, column visibility, CSV export, sort indicator, theme toggle)
+- Generic grid wrapper: components/data-grid-wrapper.tsx (DataEditor + footer aggregations + getRowThemeOverride)
 - Grid config: components/employee-grid-config.ts (columns, editable flags, theme tokens)
 - Grid logic: hooks/use-employee-grid.ts (state, sorting, editing, add/delete, theme realization)
 - Custom cells: components/tags-cell-renderer.ts + inline sparkline/persona renderers in employee-grid.tsx
 - Data shape reference: lib/data/employees.ts (EmployeeRow type and dummy generator)
-- Sort menu: components/sort-menu.ts
+- Sort menu: components/sort-menu.tsx
 - Optional dummy data entry: lib/data/employees.ts (for local testing)
 
 ----------------------------------------------------------------------
@@ -24,11 +26,14 @@ Guiding principles
 
 ----------------------------------------------------------------------
 File-by-file responsibilities
-- employee-grid.tsx: renders DataEditor, registers custom renderers, wires callbacks (sorting menu, add/delete), light/dark theme toggle.
+- app/grid/page.tsx: hosts search state + filteredData memo; passes filtered rows to EmployeeGrid.
+- employee-grid.tsx: toolbar (column visibility dropdown, CSV export button, theme toggle); composes DataGridWrapper; defines sparkline + persona renderers; wires sort menu; passes getRowThemeOverride for row dimming.
+- data-grid-wrapper.tsx: generic DataEditor wrapper; footer aggregation system (count/sum/avg/min/max/percent per column); footer scroll sync; exposes getRowThemeOverride prop passed through to DataEditor.
 - employee-grid-config.ts: declares columns (id/title/group/width/icon), editable column lists, theme tokens (light/dark). CRITICAL: font styles must be weight+size ONLY (no font family).
-- use-employee-grid.ts: owns editable state, sorting state, derived sortedRows, getCellContent, getCellsForSelection, onCellEdited, addRow, deleteRows, AND theme realization via realizeThemeFonts() helper.
-- tags-cell-renderer.ts: draws pill tags using theme.baseFontFull.
-- sort-menu.ts: simple ascending/descending/clear UI popover.
+- use-data-grid.ts: generic hook; owns rows state, column state, sortedRows derivation, getCellContent, onCellEdited, addRow, deleteRows, column resize, theme realization via realizeThemeFonts(); returns setColumns for external column visibility control.
+- use-employee-grid.ts: employee-specific wrapper around useDataGrid; maps EmployeeRow fields to GridCell kinds; handles text/boolean/date/custom cell edits.
+- tags-cell-renderer.ts: draws pill tags using theme.baseFontFull; detects dark mode via theme.bgCell.
+- sort-menu.tsx: simple ascending/descending/clear UI popover with dark mode support.
 - lib/data/employees.ts: EmployeeRow type and dummy data helpers (buildEmployees, blankEmployee).
 
 ----------------------------------------------------------------------
@@ -352,8 +357,8 @@ Row markers
 
 ----------------------------------------------------------------------
 Heights and padding
-- Current: rowHeight 72, headerHeight 60 (or 48), groupHeaderHeight 48 (or 40) depending on mode tweaks.
-- If you increase fontScale a lot, consider raising rowHeight/headerHeight to avoid clipping.
+- Current: rowHeight 35, headerHeight 40, groupHeaderHeight 32 (set in data-grid-wrapper.tsx).
+- If you increase font sizes, consider raising rowHeight/headerHeight to avoid clipping.
 
 ----------------------------------------------------------------------
 Sorting menu positioning
@@ -361,16 +366,21 @@ Sorting menu positioning
 - Closes on mouse leave; setSort called on selection; sort state stored in hook.
 
 ----------------------------------------------------------------------
-Toolbar (theme toggle only)
-- Light/dark toggle button: updates themeVariant prop passed to use-employee-grid hook.
+Toolbar (employee-grid.tsx)
+Four buttons in the toolbar above the grid:
+1. Columns button: dropdown listing all 10 columns with checkboxes; tracks hiddenColumns Set; filters grid.columns before passing to DataGridWrapper as displayColumns. Label shows "(N hidden)" when columns are hidden.
+2. Export CSV button: calls exportCSV(grid.sortedRows); generates quoted CSV via Blob + URL.createObjectURL; respects current sort order; no external dependencies.
+3. Sort indicator: displayColumns memo appends " ↑" or " ↓" to the sorted column title; purely cosmetic.
+4. Theme toggle: updates themeVariant prop passed to use-employee-grid hook; also calls document.documentElement.classList.toggle('dark', ...) to sync Tailwind dark: variants on UI elements.
 - No text size slider in current implementation.
 - To adjust text size: modify baseFontStyle in employee-grid-config.ts.
 - Remove or replace with your design system controls as needed.
 
 ----------------------------------------------------------------------
 Design tokens per mode
-- Light theme (employee-grid-config.ts): baseFontStyle: '400 16px', larger padding (cellHorizontalPadding: 18, cellVerticalPadding: 16).
-- Dark theme (employee-grid-config.ts): baseFontStyle: '400 16px', tighter padding (cellHorizontalPadding: 8, cellVerticalPadding: 3).
+- Both themes (lib/grid-theme.ts): baseFontStyle: '400 14px', headerFontStyle: '600 14px', markerFontStyle: '600 14px'.
+- Both themes: cellHorizontalPadding: 12, cellVerticalPadding: 8.
+- Row height: 35px. Header height: 40px. Group header height: 32px (set in data-grid-wrapper.tsx).
 - Adjust these values to match your design system; override as needed for symmetry across modes.
 
 ----------------------------------------------------------------------
@@ -385,10 +395,12 @@ Extending column metadata
 - Use these metadata in sortedRows and getCellContent to drive behavior.
 
 ----------------------------------------------------------------------
-Filtering (not implemented yet)
-- Pattern: add filter state in hook; derive filteredRows before sorting.
-- Provide a simple UI (search box, tag chips) to update filters.
-- Keep filters/sort pure functions on the data array.
+Filtering
+- Implemented in app/grid/page.tsx via a search input + useMemo derivation.
+- filteredData is computed by matching the query (lowercase) against firstName, lastName, email, title, and tags fields.
+- filteredData is passed as rows to EmployeeGrid; the grid hook then applies sorting on top of the already-filtered set.
+- To extend: add more fields to the filter predicate, or move the filter state into useDataGrid for hook-level access.
+- For server-side filtering: replace the local memo with an async fetch keyed to the search value (TanStack Query infrastructure is scaffolded in lib/query-provider.tsx).
 
 ----------------------------------------------------------------------
 Persisting edits
@@ -405,6 +417,7 @@ Grid props worth knowing (from Glide)
 - freezeColumns, rowMarkers, trailingRowOptions, getCellsForSelection, onCellEdited, onDelete, onRowAppended.
 - headerMenu: enabled via hasMenu; custom menu rendered by you.
 - theme: pass realized theme.
+- getRowThemeOverride: (row: number) => Partial<Theme> | undefined — returns per-row theme overrides; used to dim opted-out rows. Wired through DataGridWrapper via the getRowThemeOverride prop.
 
 ----------------------------------------------------------------------
 CSS vs canvas reminder
@@ -424,8 +437,8 @@ Performance tuning
 
 ----------------------------------------------------------------------
 Testing font size changes
-- Change baseFontStyle from '400 16px' to '400 20px' in employee-grid-config.ts and verify text is larger.
-- If text clips, increase rowHeight/headerHeight in employee-grid.tsx.
+- Change baseFontStyle from '400 14px' to '400 18px' in lib/grid-theme.ts and verify text is larger.
+- If text clips, increase rowHeight/headerHeight in data-grid-wrapper.tsx (current: 35/40/32).
 - Verify row marker numbers remain legible (adjust markerFontStyle if needed).
 
 ----------------------------------------------------------------------
@@ -542,7 +555,7 @@ Accessibility of menus
 
 ----------------------------------------------------------------------
 Printing/export
-- For CSV export, iterate over rows/columns and use copyData where available.
+- CSV export is implemented: exportCSV(rows) in employee-grid.tsx uses Blob + URL.createObjectURL; no deps.
 - For PDF, consider server-side export; canvas rendering won’t directly print well.
 
 ----------------------------------------------------------------------
@@ -621,14 +634,13 @@ Maintenance tips
 
 ----------------------------------------------------------------------
 Where to adjust fonts if needed
-- employee-grid-config.ts: Change baseFontStyle/headerFontStyle/markerFontStyle (format: weight + size, e.g., '400 18px').
-- employee-grid-config.ts: Change editorFontSize for overlay editor text (e.g., '18px').
-- employee-grid.tsx: Adjust rowHeight/headerHeight/groupHeaderHeight to fit larger fonts without clipping.
+- lib/grid-theme.ts: Change baseFontStyle/headerFontStyle/markerFontStyle in gridLightTheme and gridDarkTheme (format: weight + size, e.g., '400 18px').
+- data-grid-wrapper.tsx: Adjust rowHeight (35), headerHeight (40), groupHeaderHeight (32) to fit larger fonts without clipping.
 
 ----------------------------------------------------------------------
 Where to adjust colors if needed
-- employee-grid-config.ts: Modify employeeLightTheme and employeeDarkTheme color properties.
-- realizeThemeFonts() in use-employee-grid.ts will merge them automatically.
+- lib/grid-theme.ts: Modify gridLightTheme and gridDarkTheme color properties.
+- realizeThemeFonts() in use-data-grid.ts will merge them automatically.
 - Don't rely on CSS variable tweaks; canvas ignores CSS - all colors must be in theme object.
 
 ----------------------------------------------------------------------
@@ -638,19 +650,21 @@ Where to adjust paddings if needed
 
 ----------------------------------------------------------------------
 Known limitations
-- No filtering UI implemented yet.
-- Sorting on tags not implemented.
+- Sorting on tags not implemented (tags are arrays; add a custom comparator if needed).
 - No server sync for edits/add/delete; local only (wire yourself).
+- Date editing uses raw text parsing (no calendar picker UI); date-picker overlay editor pattern is documented but not yet integrated.
+- Dropdown cell editor (createDropdownEditor factory) is scaffolded but not wired to any column.
 
 ----------------------------------------------------------------------
 Quick-start TL;DR for brownfield
-- Copy grid files: employee-grid.tsx, employee-grid-config.ts, use-employee-grid.ts, tags-cell-renderer.ts; fix imports.
-- Map your data; adjust columns in config.
-- ⚠️ **CRITICAL**: Verify font styles in config = weight + size only (e.g., '400 16px'), NO font family.
-- Theme auto-realized in use-employee-grid.ts via realizeThemeFonts() helper.
+- Copy grid files: data-grid-wrapper.tsx, employee-grid.tsx, employee-grid-config.ts, use-data-grid.ts, use-employee-grid.ts, tags-cell-renderer.ts; fix imports.
+- Copy lib/grid-theme.ts for theme definitions.
+- Map your data; adjust columns in employee-grid-config.ts.
+- ⚠️ **CRITICAL**: Verify font styles in lib/grid-theme.ts = weight + size only (e.g., '400 14px'), NO font family.
+- Theme auto-realized in use-data-grid.ts via realizeThemeFonts() helper.
 - Keep custom renderers; register them in customRenderers array.
 - Wire add/delete/sort/edit to your backend as needed.
-- Test font sizes; adjust rowHeight if text clips.
+- Test font sizes; adjust rowHeight (35) / headerHeight (40) in data-grid-wrapper.tsx if text clips.
 
 ----------------------------------------------------------------------
 Author: Akshad Jaiswal — use this guide to safely lift the grid into your app.

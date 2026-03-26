@@ -120,6 +120,12 @@ type EmployeeGridProps = {
 export function EmployeeGrid({ rows }: EmployeeGridProps) {
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light')
   const grid = useEmployeeGrid(rows, themeMode)
+
+  const toggleTheme = useCallback(() => {
+    const next = themeMode === 'light' ? 'dark' : 'light'
+    setThemeMode(next)
+    document.documentElement.classList.toggle('dark', next === 'dark')
+  }, [themeMode])
   const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer, tagsRenderer], [])
   const [sortMenu, setSortMenu] = useState<{ col: number; x: number; y: number; columnId: ColumnId } | null>(null)
 
@@ -149,8 +155,8 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
         </div>
         <button
           type="button"
-          onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-[1px] hover:border-slate-300 hover:shadow"
+          onClick={toggleTheme}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition motion-safe:hover:-translate-y-[1px] hover:border-slate-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
         >
           Theme: {themeMode === 'light' ? 'Light' : 'Dark'}
         </button>
@@ -189,7 +195,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
       />
       {sortMenu ? (
         <div
-          className="fixed z-[9999]"
+          className="fixed z-50"
           style={{ left: sortMenu.x + 8, top: sortMenu.y + 8 }}
           onMouseLeave={() => setSortMenu(null)}
         >

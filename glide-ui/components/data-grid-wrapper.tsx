@@ -160,7 +160,7 @@ export function DataGridWrapper<T extends { id: number }>({
   )
 
   const footerButtonClasses =
-    'flex h-full w-full items-center justify-center rounded-md px-1 text-[13px] font-medium text-foreground transition hover:bg-muted leading-none truncate'
+    'flex h-full w-full items-center justify-center rounded-md px-1 text-[13px] font-medium text-foreground transition hover:bg-muted leading-none truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1'
 
   const isNumericColumn = useCallback(
     (col: GridColumn | undefined) => {
@@ -344,7 +344,10 @@ export function DataGridWrapper<T extends { id: number }>({
                 >
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className={footerButtonClasses}>
+                      <button
+                        className={footerButtonClasses}
+                        aria-label={value ? `${col.title ?? colId} aggregation: ${label}` : `Add aggregation for ${col.title ?? colId}`}
+                      >
                         {value ? (
                           <span className="truncate">
                             {value} {label && <span className="text-muted-foreground lowercase">{label}</span>}
@@ -410,7 +413,10 @@ export function DataGridWrapper<T extends { id: number }>({
                   >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className={footerButtonClasses}>
+                        <button
+                          className={footerButtonClasses}
+                          aria-label={value ? `${col.title ?? colId} aggregation: ${label}` : `Add aggregation for ${col.title ?? colId}`}
+                        >
                           {value ? (
                             <span className="truncate">
                               {value} {label && <span className="text-muted-foreground lowercase">{label}</span>}

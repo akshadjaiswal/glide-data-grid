@@ -120,25 +120,25 @@ const personaRenderer: CustomRenderer<PersonaCell> = {
   },
 }
 
-// CSV export helper
-function exportCSV(rows: EmployeeRow[]) {
-  const headers = ['ID', 'Email', 'First Name', 'Last Name', 'Opt-In', 'Title', 'Website', 'Hired At', 'Tags', 'Manager']
-  const lines = rows.map((r) =>
-    [
-      r.id,
-      r.email,
-      r.firstName,
-      r.lastName,
-      r.optIn,
-      r.title,
-      r.website,
-      format(r.hiredAt, 'yyyy-MM-dd'),
-      r.tags.join(';'),
-      r.manager.name,
-    ]
-      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-      .join(',')
-  )
+type ColFieldDef = { header: string; get: (r: EmployeeRow) => string }
+const COLUMN_FIELD_MAP: Record<string, ColFieldDef> = {
+  id: { header: 'ID', get: (r) => String(r.id) },
+  email: { header: 'Email', get: (r) => r.email },
+  firstName: { header: 'First Name', get: (r) => r.firstName },
+  lastName: { header: 'Last Name', get: (r) => r.lastName },
+  optIn: { header: 'Opt-In', get: (r) => String(r.optIn) },
+  title: { header: 'Title', get: (r) => r.title },
+  website: { header: 'Website', get: (r) => r.website },
+  hiredAt: { header: 'Hired At', get: (r) => format(r.hiredAt, 'yyyy-MM-dd') },
+  tags: { header: 'Tags', get: (r) => r.tags.join(';') },
+  manager: { header: 'Manager', get: (r) => r.manager.name },
+}
+
+// CSV export helper — only exports currently visible columns
+function exportCSV(rows: EmployeeRow[], visibleColIds: string[]) {
+  const cols = visibleColIds.map((id) => COLUMN_FIELD_MAP[id]).filter(Boolean)
+  const headers = cols.map((c) => c.header)
+  const lines = rows.map((r) => cols.map((c) => `"${c.get(r).replace(/"/g, '""')}"`).join(','))
   const csv = [headers.join(','), ...lines].join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
@@ -188,8 +188,12 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
   const toggleColumn = useCallback((colId: string) => {
     setHiddenColumns((prev) => {
       const next = new Set(prev)
-      if (next.has(colId)) next.delete(colId)
-      else next.add(colId)
+      if (next.has(colId)) {
+        next.delete(colId)
+      } else {
+        if (next.size >= employeeColumns.length - 1) return prev // keep at least 1 visible
+        next.add(colId)
+      }
       return next
     })
   }, [])
@@ -261,7 +265,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
           {/* Feature 3: Export CSV */}
           <button
             type="button"
-            onClick={() => exportCSV(grid.sortedRows)}
+            onClick={() => exportCSV(grid.sortedRows, displayColumns.map((c) => c.id as string))}
             className={toolbarButtonClass}
             aria-label="Export grid data as CSV"
           >
@@ -294,7 +298,10 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
         sortState={grid.sortState}
         setSort={grid.setSort}
         addRow={grid.addRow}
-        deleteRows={grid.deleteRows}
+        deleteRows={(indices) => {
+          grid.deleteRows(indices)
+          setGridSelection({ columns: CompactSelection.empty(), rows: CompactSelection.empty() })
+        }}
         customRenderers={customRenderers}
         onColumnResize={grid.onColumnResize}
         height="80vh"

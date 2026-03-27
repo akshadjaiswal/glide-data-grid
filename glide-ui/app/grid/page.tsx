@@ -8,11 +8,13 @@ import { buildEmployees, employees as defaultEmployees } from '@/lib/data/employ
 
 const EmployeeGrid = dynamic(() => import('@/components/employee-grid').then((m) => m.EmployeeGrid), {
   ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse rounded-xl bg-slate-100" />,
 })
 
 export default function GridPage() {
   const [data, setData] = useState(defaultEmployees)
   const [search, setSearch] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
   const pageMeta = {
     title: 'Team Directory',
     description: '50-row demo showcasing Glide Data Grid with grouped headers, custom cells, and rich data types.',
@@ -55,7 +57,11 @@ export default function GridPage() {
             </Link>
             <button
               type="button"
-              onClick={() => setData(buildEmployees(50, Date.now()))}
+              onClick={() => {
+                setData(buildEmployees(50, Date.now()))
+                setSearch('')
+                setRefreshKey((k) => k + 1)
+              }}
               className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white shadow-sm transition motion-safe:hover:-translate-y-[1px] motion-safe:hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
             >
               Refresh sample data
@@ -95,7 +101,7 @@ export default function GridPage() {
           </div>
 
           <div className="h-[650px] w-full">
-            <EmployeeGrid rows={filteredData} />
+            <EmployeeGrid key={refreshKey} rows={filteredData} />
           </div>
         </section>
       </div>

@@ -256,12 +256,28 @@ export function DataGridWrapper<T extends { id: number }>({
     [formatNumber, rows, getRowValue]
   )
 
+  const aggregationCache = useMemo(() => {
+    const cache: Record<string, { value: string | null; label: string }> = {}
+    for (const col of columns) {
+      const colId = col.id as string
+      const selected = columnAggregations[colId] ?? 'none'
+      const numeric = isNumericColumn(col)
+      const options = numeric ? NUMERIC_AGG_OPTIONS : NON_NUMERIC_AGG_OPTIONS
+      cache[colId] = {
+        value: selected !== 'none' ? computeAggregation(col, selected, numeric) : null,
+        label: options.find((o) => o.value === selected)?.label ?? '',
+      }
+    }
+    return cache
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnAggregations, rows, columns])
+
   return (
     <div
-      className={`relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ${className}`}
+      className={`relative flex flex-col overflow-hidden rounded-xl border shadow-lg ${themeVariant === 'dark' ? 'border-slate-700 bg-[#09090b]' : 'border-slate-200 bg-white'} ${className}`}
       style={{ height: resolvedHeight, width }}
     >
-      <div className="flex-1 min-h-0">
+      <div className="relative flex-1 min-h-0">
         <DataEditor
           columns={columns}
           rows={rows.length}
@@ -312,9 +328,16 @@ export function DataGridWrapper<T extends { id: number }>({
           height="100%"
           width="100%"
         />
+        {rows.length === 0 && (
+          <div
+            className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${themeVariant === 'dark' ? 'bg-[#09090b]/90 text-slate-400' : 'bg-white/90 text-slate-500'}`}
+          >
+            <p className="text-sm font-medium">No rows to display</p>
+          </div>
+        )}
       </div>
       {showFooterSummary && (
-        <div className="z-10 flex h-10 shrink-0 border-t border-slate-200 bg-white/95 text-sm text-slate-600 shadow-[0_-2px_8px_rgba(0,0,0,0.04)] backdrop-blur-sm">
+        <div className={`z-10 flex h-10 shrink-0 border-t text-sm shadow-[0_-2px_8px_rgba(0,0,0,0.04)] backdrop-blur-sm ${themeVariant === 'dark' ? 'border-slate-700 bg-[#09090b]/95 text-slate-400' : 'border-slate-200 bg-white/95 text-slate-600'}`}>
           <div
             className="grid h-full shrink-0"
             style={{ gridTemplateColumns: [rowMarkerWidth, ...frozenWidths].map((w) => `${w}px`).join(' ') }}
@@ -335,11 +358,10 @@ export function DataGridWrapper<T extends { id: number }>({
                 )
               }
 
+              const cached = aggregationCache[colId as string] ?? { value: null, label: '' }
+              const { value, label } = cached
               const numeric = isNumericColumn(col)
               const options = numeric ? NUMERIC_AGG_OPTIONS : NON_NUMERIC_AGG_OPTIONS
-              const selected = columnAggregations[colId as string] ?? 'none'
-              const value = selected ? computeAggregation(col, selected, numeric) : null
-              const label = options.find((o) => o.value === selected)?.label ?? ''
 
               return (
                 <div
@@ -404,11 +426,10 @@ export function DataGridWrapper<T extends { id: number }>({
                   )
                 }
 
+                const cached = aggregationCache[colId as string] ?? { value: null, label: '' }
+                const { value, label } = cached
                 const numeric = isNumericColumn(col)
                 const options = numeric ? NUMERIC_AGG_OPTIONS : NON_NUMERIC_AGG_OPTIONS
-                const selected = columnAggregations[colId as string] ?? 'none'
-                const value = selected ? computeAggregation(col, selected, numeric) : null
-                const label = options.find((o) => o.value === selected)?.label ?? ''
 
                 return (
                   <div

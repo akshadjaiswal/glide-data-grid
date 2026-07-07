@@ -21,7 +21,7 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
     initialRows,
     {
       columns: employeeColumns,
-      getCellContent: (rowData: EmployeeRow, columnId: string) => {
+      getCellContent: (rowData: EmployeeRow, columnId: string): GridCell => {
         switch (columnId as ColumnId) {
           case 'email':
             return {
@@ -31,6 +31,9 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
               allowOverlay: true,
               readonly: false,
               hoverEffect: true,
+              onClickUri: () => {
+                window.open(`mailto:${rowData.email}`)
+              },
             }
           case 'firstName':
             return {
@@ -57,11 +60,13 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
             }
           case 'title':
             return {
-              kind: GridCellKind.Text,
-              data: rowData.title,
-              displayData: rowData.title,
+              kind: GridCellKind.Custom,
               allowOverlay: true,
-              readonly: false,
+              data: {
+                kind: 'title-dropdown',
+                value: rowData.title,
+              },
+              copyData: rowData.title,
             }
           case 'website':
             return {
@@ -71,6 +76,9 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
               allowOverlay: true,
               readonly: false,
               hoverEffect: true,
+              onClickUri: () => {
+                window.open(rowData.website, '_blank', 'noopener,noreferrer')
+              },
             }
           case 'performance':
             return {
@@ -91,7 +99,7 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
               data: {
                 kind: 'tags',
                 tags,
-                colorMap: generateTagColorMap(tags), // Generate vibrant, consistent colors
+                colorMap: generateTagColorMap(tags),
               },
               copyData: tags.join(', '),
             }
@@ -134,6 +142,11 @@ export function useEmployeeGrid(initialRows: EmployeeRow[], themeVariant: ThemeV
         } else if (columnId === 'hiredAt' && newValue.kind === GridCellKind.Text) {
           const parsed = new Date(newValue.data)
           return { ...current, hiredAt: Number.isNaN(parsed.getTime()) ? current.hiredAt : parsed }
+        } else if (columnId === 'title' && newValue.kind === GridCellKind.Custom) {
+          const data = (newValue as any).data
+          if (data?.kind === 'title-dropdown' && typeof data.value === 'string') {
+            return { ...current, title: data.value }
+          }
         }
         return current
       },

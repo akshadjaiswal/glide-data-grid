@@ -15,9 +15,10 @@ type DropdownEditorProps = {
   options: DropdownOption[]
   onChange: (newValue: string) => void
   onClose: () => void
+  isDark?: boolean
 }
 
-function DropdownEditor({ value, options, onChange, onClose }: DropdownEditorProps) {
+function DropdownEditor({ value, options, onChange, onClose, isDark = false }: DropdownEditorProps) {
   const [selected, setSelected] = useState(value)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -45,6 +46,10 @@ function DropdownEditor({ value, options, onChange, onClose }: DropdownEditorPro
     }
   }, [selected, onChange, onClose])
 
+  const bg = isDark ? '#18181b' : '#ffffff'
+  const border = isDark ? '#3f3f46' : '#e5e7eb'
+  const hoverBg = isDark ? '#27272a' : '#f3f4f6'
+
   return (
     <div
       ref={containerRef}
@@ -52,18 +57,18 @@ function DropdownEditor({ value, options, onChange, onClose }: DropdownEditorPro
         position: 'absolute',
         top: '100%',
         left: 0,
-        backgroundColor: 'white',
-        border: '1px solid #e5e5e5',
-        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        backgroundColor: bg,
+        border: `1px solid ${border}`,
+        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.15), 0 4px 6px -2px rgba(0,0,0,0.08)',
         borderRadius: '8px',
-        minWidth: '192px',
+        minWidth: '200px',
         maxHeight: '300px',
         overflow: 'auto',
         zIndex: 10000,
         marginTop: '4px',
       }}
     >
-      <div style={{ padding: '8px' }}>
+      <div style={{ padding: '6px' }}>
         {options.map((option) => (
           <button
             key={option.value}
@@ -71,18 +76,18 @@ function DropdownEditor({ value, options, onChange, onClose }: DropdownEditorPro
             style={{
               width: '100%',
               textAlign: 'left',
-              padding: '8px 12px',
+              padding: '6px 10px',
               borderRadius: '6px',
               border: 'none',
-              background: 'transparent',
+              background: option.value === selected ? hoverBg : 'transparent',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              marginBottom: '4px',
+              marginBottom: '2px',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f3f4f6')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = option.value === selected ? hoverBg : 'transparent' }}
             onClick={() => {
               setSelected(option.value)
               onChange(option.value)
@@ -93,10 +98,11 @@ function DropdownEditor({ value, options, onChange, onClose }: DropdownEditorPro
               style={{
                 backgroundColor: option.color.bg,
                 color: option.color.text,
-                padding: '4px 12px',
+                padding: '3px 10px',
                 borderRadius: '12px',
                 fontSize: '12px',
                 fontWeight: '600',
+                whiteSpace: 'nowrap',
               }}
             >
               {option.label}
@@ -119,6 +125,7 @@ export function createDropdownEditor(
     }
 
     const currentValue = (cell.data as any)[valueKey] as string
+    const isDark = document.documentElement.classList.contains('dark')
 
     return {
       editor: (props) => {
@@ -129,6 +136,7 @@ export function createDropdownEditor(
           <DropdownEditor
             value={val || currentValue}
             options={options}
+            isDark={isDark}
             onChange={(newValue) => {
               onChange({
                 ...cellValue,
@@ -168,4 +176,18 @@ export const LPT_OPTIONS: DropdownOption[] = [
   { value: 'Blog', label: 'Blog', color: { bg: '#6366F1', text: '#FFFFFF' } },
   { value: 'Product', label: 'Product', color: { bg: '#EC4899', text: '#FFFFFF' } },
   { value: 'Service', label: 'Service', color: { bg: '#06B6D4', text: '#FFFFFF' } },
+]
+
+// Title/role options for the employee title dropdown
+export const TITLE_OPTIONS: DropdownOption[] = [
+  { value: 'Global Integration Manager', label: 'Global Integration Manager', color: { bg: '#3B82F6', text: '#FFFFFF' } },
+  { value: 'Senior Implementation Assistant', label: 'Senior Implementation Assistant', color: { bg: '#8B5CF6', text: '#FFFFFF' } },
+  { value: 'Lead Mobility Strategist', label: 'Lead Mobility Strategist', color: { bg: '#10B981', text: '#FFFFFF' } },
+  { value: 'Principal Data Developer', label: 'Principal Data Developer', color: { bg: '#F59E0B', text: '#000000' } },
+  { value: 'Customer Experience Consultant', label: 'Customer Experience Consultant', color: { bg: '#EC4899', text: '#FFFFFF' } },
+  { value: 'Chief Accountability Architect', label: 'Chief Accountability Architect', color: { bg: '#EF4444', text: '#FFFFFF' } },
+  { value: 'Product Infrastructure Director', label: 'Product Infrastructure Director', color: { bg: '#06B6D4', text: '#FFFFFF' } },
+  { value: 'Marketing Functionality Engineer', label: 'Marketing Functionality Engineer', color: { bg: '#84CC16', text: '#000000' } },
+  { value: 'Dynamic Research Manager', label: 'Dynamic Research Manager', color: { bg: '#F97316', text: '#FFFFFF' } },
+  { value: 'Regional Infrastructure Developer', label: 'Regional Infrastructure Developer', color: { bg: '#6366F1', text: '#FFFFFF' } },
 ]

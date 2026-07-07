@@ -1,11 +1,13 @@
 'use client'
 
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import {
   GridCellKind,
   CompactSelection,
   type CustomCell,
   type CustomRenderer,
+  type DrawCellCallback,
+  type DrawHeaderCallback,
   type GridSelection,
 } from '@glideapps/glide-data-grid'
 import '@glideapps/glide-data-grid/dist/index.css'
@@ -18,6 +20,7 @@ import { SortMenu } from './sort-menu'
 import { employeeColumns, type ColumnId } from './employee-grid-config'
 import { tagsRenderer } from './tags-cell-renderer'
 import { DataGridWrapper } from './data-grid-wrapper'
+import { createDropdownEditor, TITLE_OPTIONS } from './editors/dropdown-overlay-editor'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +30,15 @@ import {
 
 type SparklineCell = CustomCell<{ kind: 'sparkline'; values: readonly number[]; color: string }>
 type PersonaCell = CustomCell<{ kind: 'persona'; name: string; avatar: string }>
+
+// Column group colors for drawHeader accent bars
+const GROUP_ACCENT_COLORS: Record<string, string> = {
+  'ID': '#2F8BFF',
+  'Name': '#8B5CF6',
+  'Info': '#10B981',
+  'Performance': '#F59E0B',
+  'Employment Data': '#EC4899',
+}
 
 // Custom sparkline cell renderer
 const sparklineRenderer: CustomRenderer<SparklineCell> = {
@@ -39,7 +51,6 @@ const sparklineRenderer: CustomRenderer<SparklineCell> = {
 
     if (cellFillColor) {
       ctx.fillStyle = cellFillColor
-      // Leave 1px gutter so the grid borders remain visible
       ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
     }
 
@@ -88,7 +99,6 @@ const personaRenderer: CustomRenderer<PersonaCell> = {
     const { ctx, rect, theme, cellFillColor, col, row, imageLoader, requestAnimationFrame } = args
     if (cellFillColor) {
       ctx.fillStyle = cellFillColor
-      // Leave 1px gutter so the grid borders remain visible
       ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
     }
 
@@ -120,6 +130,66 @@ const personaRenderer: CustomRenderer<PersonaCell> = {
   },
 }
 
+// Custom title dropdown renderer — renders the value as a colored pill
+type TitleDropdownCell = CustomCell<{ kind: 'title-dropdown'; value: string }>
+
+const titleDropdownRenderer: CustomRenderer<TitleDropdownCell> = {
+  kind: GridCellKind.Custom,
+  isMatch: (cell): cell is TitleDropdownCell =>
+    cell.kind === GridCellKind.Custom && (cell.data as any).kind === 'title-dropdown',
+  draw: (args, cell) => {
+    const { ctx, rect, theme, cellFillColor } = args
+    if (cellFillColor) {
+      ctx.fillStyle = cellFillColor
+      ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
+    }
+
+    const value = cell.data.value
+    if (!value) return
+
+    const option = TITLE_OPTIONS.find((o) => o.value === value)
+    const pillBg = option?.color.bg ?? theme.accentColor
+    const pillText = option?.color.text ?? '#ffffff'
+
+    const paddingX = 8
+    const pillH = 22
+    const pillY = rect.y + (rect.height - pillH) / 2
+    const textMetrics = ctx.measureText(value)
+    const pillW = Math.min(textMetrics.width + 20, rect.width - paddingX * 2)
+    const pillX = rect.x + paddingX
+
+    ctx.save()
+    ctx.beginPath()
+    const r = pillH / 2
+    ctx.moveTo(pillX + r, pillY)
+    ctx.lineTo(pillX + pillW - r, pillY)
+    ctx.arcTo(pillX + pillW, pillY, pillX + pillW, pillY + pillH, r)
+    ctx.lineTo(pillX + pillW, pillY + pillH - r)
+    ctx.arcTo(pillX + pillW, pillY + pillH, pillX + r, pillY + pillH, r)
+    ctx.lineTo(pillX + r, pillY + pillH)
+    ctx.arcTo(pillX, pillY + pillH, pillX, pillY, r)
+    ctx.lineTo(pillX, pillY + r)
+    ctx.arcTo(pillX, pillY, pillX + r, pillY, r)
+    ctx.closePath()
+    ctx.fillStyle = pillBg
+    ctx.fill()
+
+    ctx.fillStyle = pillText
+    ctx.font = '600 11px ' + theme.fontFamily
+    ctx.textBaseline = 'middle'
+    ctx.textAlign = 'left'
+
+    // Clip text to pill width
+    ctx.save()
+    ctx.rect(pillX + 8, pillY, pillW - 16, pillH)
+    ctx.clip()
+    ctx.fillText(value, pillX + 8, pillY + pillH / 2)
+    ctx.restore()
+
+    ctx.restore()
+  },
+}
+
 type ColFieldDef = { header: string; get: (r: EmployeeRow) => string }
 const COLUMN_FIELD_MAP: Record<string, ColFieldDef> = {
   id: { header: 'ID', get: (r) => String(r.id) },
@@ -134,7 +204,6 @@ const COLUMN_FIELD_MAP: Record<string, ColFieldDef> = {
   manager: { header: 'Manager', get: (r) => r.manager.name },
 }
 
-// CSV export helper — only exports currently visible columns
 function exportCSV(rows: EmployeeRow[], visibleColIds: string[]) {
   const cols = visibleColIds.map((id) => COLUMN_FIELD_MAP[id]).filter(Boolean)
   const headers = cols.map((c) => c.header)
@@ -152,6 +221,16 @@ function exportCSV(rows: EmployeeRow[], visibleColIds: string[]) {
 const toolbarButtonClass =
   'rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition motion-safe:hover:-translate-y-[1px] hover:border-slate-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'
 
+const toolbarButtonActivClass =
+  'rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition motion-safe:hover:-translate-y-[1px] hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'
+
+type ContextMenuState = {
+  x: number
+  y: number
+  col: number
+  row: number
+}
+
 type EmployeeGridProps = {
   rows: EmployeeRow[]
 }
@@ -160,17 +239,27 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light')
   const grid = useEmployeeGrid(rows, themeMode)
 
-  // Theme toggle — also syncs Tailwind dark class on <html>
   const toggleTheme = useCallback(() => {
     const next = themeMode === 'light' ? 'dark' : 'light'
     setThemeMode(next)
     document.documentElement.classList.toggle('dark', next === 'dark')
   }, [themeMode])
 
-  const customRenderers = useMemo(() => [sparklineRenderer, personaRenderer, tagsRenderer], [])
-  const [sortMenu, setSortMenu] = useState<{ col: number; x: number; y: number; columnId: ColumnId } | null>(null)
+  // Dropdown provideEditor for title column
+  const provideEditor = useMemo(
+    () => createDropdownEditor(TITLE_OPTIONS, 'title-dropdown', 'value'),
+    []
+  )
 
-  // Grid selection state for row checkboxes
+  const customRenderers = useMemo(
+    () => [sparklineRenderer, personaRenderer, tagsRenderer, titleDropdownRenderer],
+    []
+  )
+
+  const [sortMenu, setSortMenu] = useState<{ col: number; x: number; y: number; columnId: ColumnId } | null>(null)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+
   const [gridSelection, setGridSelection] = useState<GridSelection>({
     columns: CompactSelection.empty(),
     rows: CompactSelection.empty(),
@@ -182,7 +271,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
 
   const selectedCount = gridSelection.rows ? Array.from(gridSelection.rows).length : 0
 
-  // Feature 2: Column visibility — track hidden column IDs
+  // Column visibility
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set())
 
   const toggleColumn = useCallback((colId: string) => {
@@ -191,14 +280,14 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
       if (next.has(colId)) {
         next.delete(colId)
       } else {
-        if (next.size >= employeeColumns.length - 1) return prev // keep at least 1 visible
+        if (next.size >= employeeColumns.length - 1) return prev
         next.add(colId)
       }
       return next
     })
   }, [])
 
-  // Feature 4: Sort indicator — append ↑/↓ to sorted column title
+  // Sort indicator — append ↑/↓ to sorted column title
   const displayColumns = useMemo(
     () =>
       grid.columns
@@ -211,7 +300,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
     [grid.columns, grid.sortState, hiddenColumns]
   )
 
-  // Feature 5: Row highlight — dim opted-out rows via getRowThemeOverride
+  // Row highlight — dim opted-out rows
   const getRowThemeOverride = useCallback(
     (row: number) => {
       const r = grid.sortedRows[row]
@@ -223,18 +312,126 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
     [grid.sortedRows, themeMode]
   )
 
+  // drawCell — overdraw trend arrows on sparkline cells
+  const drawCell: DrawCellCallback = useCallback((args, draw) => {
+    draw()
+    const { cell, ctx, rect } = args
+    if (cell.kind !== GridCellKind.Custom) return
+    const data = (cell as SparklineCell).data
+    if (data?.kind !== 'sparkline') return
+    const vals = data.values as number[]
+    if (!vals || vals.length < 2) return
+
+    const trend = vals[vals.length - 1] - vals[0]
+    const arrow = trend >= 0 ? '↑' : '↓'
+    const color = trend >= 0 ? '#10B981' : '#EF4444'
+
+    ctx.save()
+    ctx.font = 'bold 11px system-ui, sans-serif'
+    ctx.fillStyle = color
+    ctx.textBaseline = 'top'
+    ctx.textAlign = 'right'
+    ctx.fillText(arrow, rect.x + rect.width - 6, rect.y + 5)
+    ctx.restore()
+  }, [])
+
+  // drawHeader — colored accent bar at bottom of each column header by group
+  const drawHeader: DrawHeaderCallback = useCallback((args, draw) => {
+    draw()
+    const { ctx, rect, column } = args
+    const group = column.group
+    if (!group) return
+    const color = GROUP_ACCENT_COLORS[group]
+    if (!color) return
+
+    ctx.save()
+    ctx.fillStyle = color
+    ctx.fillRect(rect.x + 2, rect.y + rect.height - 3, rect.width - 4, 3)
+    ctx.restore()
+  }, [])
+
+  // Keyboard shortcut: Cmd/Ctrl+Enter to add row
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault()
+        grid.addRow()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [grid.addRow])
+
+  // Context menu click-outside dismiss
+  useEffect(() => {
+    if (!contextMenu) return
+    const onDown = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [contextMenu])
+
+  const handleCellContextMenu = useCallback(
+    (cell: readonly [number, number], event: any) => {
+      event.preventDefault?.()
+      setContextMenu({
+        x: event.bounds?.x ?? 0,
+        y: (event.bounds?.y ?? 0) + (event.bounds?.height ?? 35),
+        col: cell[0],
+        row: cell[1],
+      })
+    },
+    []
+  )
+
+  const handleDeleteFromContext = useCallback(() => {
+    if (contextMenu === null) return
+    grid.deleteRows([contextMenu.row])
+    setGridSelection({ columns: CompactSelection.empty(), rows: CompactSelection.empty() })
+    setContextMenu(null)
+  }, [contextMenu, grid])
+
+  const handleCopyEmailFromContext = useCallback(() => {
+    if (contextMenu === null) return
+    const row = grid.sortedRows[contextMenu.row]
+    if (row) {
+      navigator.clipboard.writeText(row.email).catch(() => {})
+    }
+    setContextMenu(null)
+  }, [contextMenu, grid.sortedRows])
+
+  const isDark = themeMode === 'dark'
+  const menuBg = isDark ? '#18181b' : '#ffffff'
+  const menuBorder = isDark ? '#3f3f46' : '#e5e7eb'
+  const menuText = isDark ? '#e4e4e7' : '#374151'
+  const menuHover = isDark ? '#27272a' : '#f9fafb'
+  const menuDangerText = '#ef4444'
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm text-slate-600">
+        <div className="flex items-center gap-3 text-sm text-slate-600">
           {selectedCount > 0 && (
             <span className="font-medium">
               {selectedCount} row{selectedCount !== 1 ? 's' : ''} selected
             </span>
           )}
+          <span className="hidden text-xs text-slate-400 sm:inline">
+            ⌘↵ Add row
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Feature 2: Column visibility toggle */}
+          {/* Column visibility toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" className={toolbarButtonClass} aria-label="Toggle column visibility">
@@ -262,7 +459,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Feature 3: Export CSV */}
+          {/* Export CSV */}
           <button
             type="button"
             onClick={() => exportCSV(grid.sortedRows, displayColumns.map((c) => c.id as string))}
@@ -276,9 +473,9 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
           <button
             type="button"
             onClick={toggleTheme}
-            className={toolbarButtonClass}
+            className={isDark ? toolbarButtonActivClass : toolbarButtonClass}
           >
-            Theme: {themeMode === 'light' ? 'Light' : 'Dark'}
+            {isDark ? 'Dark' : 'Light'}
           </button>
         </div>
       </div>
@@ -290,6 +487,7 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
         getCellContent={grid.getCellContent}
         getCellsForSelection={grid.getCellsForSelection}
         onCellEdited={grid.onCellEdited}
+        onCellContextMenu={handleCellContextMenu}
         gridSelection={gridSelection}
         onGridSelectionChange={handleGridSelectionChange}
         rangeSelect="cell"
@@ -303,6 +501,9 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
           setGridSelection({ columns: CompactSelection.empty(), rows: CompactSelection.empty() })
         }}
         customRenderers={customRenderers}
+        provideEditor={provideEditor}
+        drawCell={drawCell}
+        drawHeader={drawHeader}
         onColumnResize={grid.onColumnResize}
         height="80vh"
         width="100%"
@@ -334,6 +535,69 @@ export function EmployeeGrid({ rows }: EmployeeGridProps) {
               setSortMenu(null)
             }}
           />
+        </div>
+      ) : null}
+
+      {/* Right-click context menu */}
+      {contextMenu ? (
+        <div
+          ref={contextMenuRef}
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            backgroundColor: menuBg,
+            border: `1px solid ${menuBorder}`,
+            borderRadius: '10px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+            minWidth: '180px',
+            padding: '6px',
+            zIndex: 9999,
+          }}
+        >
+          <button
+            type="button"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              width: '100%', padding: '8px 12px', borderRadius: '6px',
+              border: 'none', background: 'transparent', cursor: 'pointer',
+              color: menuText, fontSize: '13px', textAlign: 'left',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = menuHover }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+            onClick={() => { grid.addRow(); setContextMenu(null) }}
+          >
+            + Add row below
+          </button>
+          <button
+            type="button"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              width: '100%', padding: '8px 12px', borderRadius: '6px',
+              border: 'none', background: 'transparent', cursor: 'pointer',
+              color: menuText, fontSize: '13px', textAlign: 'left',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = menuHover }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+            onClick={handleCopyEmailFromContext}
+          >
+            Copy email
+          </button>
+          <div style={{ height: '1px', background: menuBorder, margin: '4px 8px' }} />
+          <button
+            type="button"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              width: '100%', padding: '8px 12px', borderRadius: '6px',
+              border: 'none', background: 'transparent', cursor: 'pointer',
+              color: menuDangerText, fontSize: '13px', textAlign: 'left',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = menuHover }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+            onClick={handleDeleteFromContext}
+          >
+            Delete row
+          </button>
         </div>
       ) : null}
     </div>

@@ -34,10 +34,13 @@ The architecture separates concerns into three layers:
 - **Critical**: theme `fontStyle` fields must contain only `weight + size` (e.g. `'600 14px'`). The hook combines these with `fontFamily` into `baseFontFull`, `headerFontFull`, `markerFontFull` via `realizeThemeFonts()`. Glide Data Grid requires fully-formed font strings in render calls.
 - Theme objects (`gridLightTheme` / `gridDarkTheme`) come from `lib/grid-theme.ts` and are merged with `getDefaultTheme()` inside this hook.
 - Returns `setColumns` which is used by the column visibility toggle in the UI.
+- **The generic hook is stable — do not add employee-specific logic to it.**
 
 **2. Domain-specific hook** — `hooks/use-employee-grid.ts`
 - `useEmployeeGrid()` wraps `useDataGrid<EmployeeRow>()` with the employee schema.
 - Defines `getCellContent` (column ID → `GridCell` kind mapping) and `onCellEdit` (how edits are applied per column type).
+- `title` column uses `GridCellKind.Custom` with `kind: 'title-dropdown'` — not `GridCellKind.Text`. Edit handler checks for `kind === 'title-dropdown'` and extracts `data.value`.
+- `email` and `website` URI cells have `onClickUri` handlers for `mailto:` and external URL navigation.
 - Delegates to config in `components/employee-grid-config.ts` for column definitions, editable column lists, and theme references.
 
 **3. UI components**
@@ -47,30 +50,60 @@ The architecture separates concerns into three layers:
   - Sort menu integration via `onHeaderMenuClick`
   - Row markers, add row, and delete row wiring
   - `getRowThemeOverride` prop for per-row theme overrides (passed through to Glide's `DataEditor`)
-- `components/employee-grid.tsx` — UI layer that composes `DataGridWrapper` with employee-specific custom renderers and a toolbar with four controls: column visibility toggle, CSV export, sort indicator, and theme toggle.
+  - `drawCell` prop for custom canvas overdrawing on cells (passed to `DataEditor`)
+  - `drawHeader` prop for custom column header rendering (passed to `DataEditor`)
+  - `onCellContextMenu` prop for right-click context menus
+  - `freezeTrailingRows` prop to pin trailing rows
+- `components/employee-grid.tsx` — UI layer that composes `DataGridWrapper` with employee-specific logic.
 
 ### Toolbar Features (employee-grid.tsx)
 
-The toolbar above the grid provides four controls:
+The toolbar above the grid provides these controls:
 
 | Control | What it does |
 |---|---|
-| **Columns** dropdown | Show/hide any of the 10 columns. Tracks a `hiddenColumns: Set<string>` state; filters `grid.columns` before passing to `DataGridWrapper`. Updates label to show count of hidden columns. |
+| **Columns** dropdown | Show/hide any of the 10 columns. Tracks a `hiddenColumns: Set<string>` state; filters `grid.columns` before passing to `DataGridWrapper`. |
 | **Export CSV** button | Downloads current `grid.sortedRows` as `employees.csv`. Pure JS — no external deps. Respects current sort order. |
-| **Sort indicator** | Derived `displayColumns` array appends ` ↑` or ` ↓` to the sorted column's title. Purely cosmetic — no data changes. |
-| **Theme toggle** | Switches between `'light'` and `'dark'` Glide theme variants. Also syncs the `dark` class on `<html>` so Tailwind `dark:` variants (e.g. on `SortMenu`) activate correctly. |
+| **Sort indicator** | Derived `displayColumns` array appends ` ↑` or ` ↓` to the sorted column's title. Purely cosmetic. |
+| **Theme toggle** | Switches between `'light'` and `'dark'` Glide theme variants. Also syncs the `dark` class on `<html>` so Tailwind `dark:` variants activate correctly. |
 
-Row multi-select count ("X rows selected") is displayed in the toolbar left side.
+Row multi-select count ("X rows selected") is displayed in the toolbar left side. Keyboard hint `⌘↵ Add row` shown alongside.
+
+### Canvas Callbacks (employee-grid.tsx)
+
+- **`drawCell`** — overdraw on sparkline cells: after base cell paints, draws a `↑` (green `#10B981`) or `↓` (red `#EF4444`) trend arrow in the top-right corner based on first vs last performance value. Must call `draw()` first, then guard on `cell.kind === GridCellKind.Custom` and `data.kind === 'sparkline'`. Use `ctx.save()`/`ctx.restore()`.
+- **`drawHeader`** — after base header paints, draws a 3px colored accent bar at the bottom of each column header, color-coded by `column.group`. Color map: `GROUP_ACCENT_COLORS` in `employee-grid.tsx`. Must call `draw()` first.
+
+### Right-Click Context Menu (employee-grid.tsx)
+
+`onCellContextMenu` on `DataGridWrapper` triggers a positioned `div` context menu with actions: Add row below, Copy email, Delete row. State: `contextMenu: { x, y, col, row } | null`. Dismissed on click-outside (via `useEffect`) or Escape. Dark mode styling reads `themeMode` state.
+
+### Keyboard Shortcuts (employee-grid.tsx)
+
+- `Cmd/Ctrl+Enter` — add a new row (calls `grid.addRow()`). Registered in `useEffect` on `document`.
+
+### Pagination (app/grid/page.tsx)
+
+- `page` (useState 0) and `pageSize` (useState 50, options: 25/50/100) state at the page level.
+- `pagedData = filteredData.slice(clampedPage * pageSize, (clampedPage + 1) * pageSize)` passed to `<EmployeeGrid>`.
+- Pagination controls rendered below the grid: first/prev/next/last buttons + page size selector.
+- Search change resets `page` to 0.
 
 ### Search Bar (app/grid/page.tsx)
 
-A real-time search input sits above the grid in `app/grid/page.tsx`. It filters the `data` array via `useMemo` across `firstName`, `lastName`, `email`, `title`, and `tags` fields. The `filteredData` result is passed as `rows` to `EmployeeGrid`. A live match count (`N / 50`) is shown inside the input when a query is active.
+A real-time search input sits above the grid. It filters the `data` array via `useMemo` across `firstName`, `lastName`, `email`, `title`, and `tags` fields. A live match count (`N / 50`) is shown inside the input when active.
 
 ### Row Highlighting
 
 Opted-out rows (`optIn === false`) are visually dimmed via Glide's `getRowThemeOverride` API:
 - Light mode: `bgCell: '#f9fafb'`, `textDark: '#9ca3af'`
 - Dark mode: `bgCell: '#141418'`, `textDark: '#6b7280'`
+
+### Column Config (employee-grid-config.ts)
+
+All 10 columns have `hasMenu: true` and `menuIcon: GridColumnMenuIcon.Dots`. The dots icon appears on header hover and triggers the sort menu for any column.
+
+`editableTextColumns` does NOT include `'title'` — it is a `Custom` dropdown cell, not a text cell. Editing is handled by `onCellEdit` checking `kind === 'title-dropdown'`.
 
 ### Custom Cell Renderers
 
@@ -81,20 +114,29 @@ All renderers implement `CustomRenderer<T>` from Glide and must use canvas APIs:
 | Tags (pill badges) | `components/tags-cell-renderer.ts` | `'tags'` |
 | Sparkline chart | inline in `components/employee-grid.tsx` | `'sparkline'` |
 | Persona (avatar + name) | inline in `components/employee-grid.tsx` | `'persona'` |
+| Title dropdown pill | inline in `components/employee-grid.tsx` | `'title-dropdown'` |
 
-Custom renderers **must** leave a 1px gutter when filling `cellFillColor`: `ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)`. This preserves grid border lines under hover/selection states.
+Custom renderers **must** leave a 1px gutter when filling `cellFillColor`: `ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)`. This preserves grid border lines.
 
-Tags renderer detects dark mode by inspecting `theme.bgCell === '#09090B'` since Glide doesn't pass a theme variant flag to renderers. Tag colors come from `lib/tag-colors.ts` — `generateTagColorMap(tags[])` returns a `Record<string, TagColor>` used when building tags cells in `use-employee-grid.ts`.
+Tags renderer detects dark mode by inspecting `theme.bgCell === '#09090B'`. Tag colors come from `lib/tag-colors.ts`.
+
+The `titleDropdownRenderer` renders the current title value as a colored rounded pill using canvas path/arc. Pill color comes from `TITLE_OPTIONS` in `dropdown-overlay-editor.tsx`.
 
 ### Custom Cell Editors
 
-**Dropdown** — `components/editors/dropdown-overlay-editor.tsx` — `createDropdownEditor(options, cellKind, valueKey)` factory returns a `ProvideEditorCallback<CustomCell>`. Options are `{ value, label, color: { bg, text } }[]`. Handles click-outside and Escape to close. Ships with preset option lists: `FUNNEL_STAGE_OPTIONS`, `REVENUE_OPTIONS`, `LPT_OPTIONS`. **Not currently wired into the employee grid** — use this as the pattern for adding dropdown editing to any column.
+**Dropdown** — `components/editors/dropdown-overlay-editor.tsx` — `createDropdownEditor(options, cellKind, valueKey)` factory returns a `ProvideEditorCallback<CustomCell>`. Options are `{ value, label, color: { bg, text } }[]`. Handles click-outside and Escape to close. Dark mode aware — reads `document.documentElement.classList.contains('dark')` at render time.
+
+Preset option lists:
+- `TITLE_OPTIONS` — 10 job title options with distinct colors (wired to `title` column)
+- `FUNNEL_STAGE_OPTIONS`, `REVENUE_OPTIONS`, `LPT_OPTIONS` — available for future columns
+
+The `provideEditor` from `createDropdownEditor(TITLE_OPTIONS, 'title-dropdown', 'value')` is passed to `DataGridWrapper` from `employee-grid.tsx`.
 
 ### Theming
 
 Themes are defined in `lib/grid-theme.ts` as `Partial<Theme>` objects (`gridLightTheme` / `gridDarkTheme`). They are merged with `getDefaultTheme()` inside `useDataGrid`. Theme variant (`'light' | 'dark'`) is toggled in `employee-grid.tsx` state and passed down through the hook.
 
-`tailwind.config.js` uses CSS variable HSL color tokens (`hsl(var(--popover))`, `hsl(var(--background))`, etc.) with `darkMode: 'class'`. The theme toggle in `employee-grid.tsx` calls `document.documentElement.classList.toggle('dark', ...)` so Tailwind dark mode applies to all UI elements (sort menu, dropdowns, etc.).
+`tailwind.config.js` uses CSS variable HSL color tokens with `darkMode: 'class'`. The theme toggle calls `document.documentElement.classList.toggle('dark', ...)`.
 
 ### Data
 
@@ -118,8 +160,8 @@ shadcn/ui components live in `components/ui/`. Currently installed:
 
 ### Utilities & Scaffolding
 
-- **`lib/tag-colors.ts`** — `generateTagColor(tag)` hashes tag text deterministically over 12 vibrant colors; `generateTagColorMap(tags[])` returns a `Record<string, TagColor>` mapping. Colors are designed to be legible in both light and dark themes.
+- **`lib/tag-colors.ts`** — `generateTagColor(tag)` hashes tag text deterministically over 12 vibrant colors; `generateTagColorMap(tags[])` returns a `Record<string, TagColor>` mapping.
 - **`lib/query-provider.tsx`** — `QueryProvider` wraps the app with TanStack Query (`staleTime: 60s`, `refetchOnWindowFocus: false`). Present in the layout but not actively used yet — scaffolded for future real API data fetching.
-- **`lib/example-store.ts`** — Zustand counter store, not used anywhere. Template scaffolding left over from project initialization.
+- **`lib/example-store.ts`** — Zustand counter store, not used anywhere. Template scaffolding.
 - **`prisma/`** — empty directory, no schema. Placeholder for future database integration.
 - **`types/`** — empty directory. Placeholder for shared type definitions.

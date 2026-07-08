@@ -4,12 +4,14 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   DataEditor,
   type CustomRenderer,
+  type DrawCellCallback,
+  type DrawHeaderCallback,
   type GridCell,
   type GridColumn,
   type ProvideEditorCallback,
   type Theme,
 } from '@glideapps/glide-data-grid'
-import type { Item, EditableGridCell, Rectangle } from '@glideapps/glide-data-grid'
+import type { Item, EditableGridCell, Rectangle, CellClickedEventArgs } from '@glideapps/glide-data-grid'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +57,7 @@ export type DataGridWrapperProps<T extends { id: number }> = {
   getCellsForSelection: (selection: Rectangle) => GridCell[][]
   onCellEdited: (cell: Item, newValue: EditableGridCell) => void
   onCellClicked?: (cell: Item) => void
+  onCellContextMenu?: (cell: Item, event: CellClickedEventArgs) => void
   gridSelection?: any
   onGridSelectionChange?: (selection: any) => void
   rangeSelect?: 'rect' | 'cell' | 'multi-cell' | 'multi-rect'
@@ -66,6 +69,8 @@ export type DataGridWrapperProps<T extends { id: number }> = {
   deleteRows: (indices: number[]) => void
   customRenderers: readonly CustomRenderer<any>[]
   provideEditor?: ProvideEditorCallback<any>
+  drawCell?: DrawCellCallback
+  drawHeader?: DrawHeaderCallback
   onColumnResize?: (column: GridColumn, newSize: number, columnIndex: number) => void
   getRowValue?: (row: any, column: GridColumn) => unknown
   height?: string
@@ -74,6 +79,7 @@ export type DataGridWrapperProps<T extends { id: number }> = {
   showFooterSummary?: boolean
   excludeFooterColumns?: string[]
   freezeColumns?: number
+  freezeTrailingRows?: number
   onHeaderMenuClick?: (col: number, screenRect: Rectangle) => void
   themeVariant?: 'light' | 'dark'
   getRowThemeOverride?: (row: number) => Partial<Theme> | undefined
@@ -87,6 +93,7 @@ export function DataGridWrapper<T extends { id: number }>({
   getCellsForSelection,
   onCellEdited,
   onCellClicked,
+  onCellContextMenu,
   gridSelection,
   onGridSelectionChange,
   rangeSelect = 'rect',
@@ -98,6 +105,8 @@ export function DataGridWrapper<T extends { id: number }>({
   deleteRows,
   customRenderers,
   provideEditor,
+  drawCell,
+  drawHeader,
   onColumnResize,
   getRowValue,
   height = '75vh',
@@ -106,6 +115,7 @@ export function DataGridWrapper<T extends { id: number }>({
   showFooterSummary = true,
   excludeFooterColumns = [],
   freezeColumns = 2,
+  freezeTrailingRows = 0,
   onHeaderMenuClick,
   themeVariant = 'light',
   getRowThemeOverride,
@@ -169,7 +179,6 @@ export function DataGridWrapper<T extends { id: number }>({
     (col: GridColumn | undefined) => {
       if (!col) return false
 
-      // Hint from icon
       if ((col as any).icon === 'headerNumber' || (col as any).icon === 5) {
         return true
       }
@@ -235,7 +244,6 @@ export function DataGridWrapper<T extends { id: number }>({
         }
       }
 
-      // Non-numeric: only count/percent
       const filled = values.filter((v) => v !== undefined && v !== null && v !== '').length
       const empty = total - filled
       if (total === 0) return null
@@ -285,12 +293,15 @@ export function DataGridWrapper<T extends { id: number }>({
           getCellsForSelection={getCellsForSelection}
           onCellEdited={onCellEdited}
           onCellClicked={onCellClicked}
+          onCellContextMenu={onCellContextMenu}
           gridSelection={gridSelection}
           onGridSelectionChange={onGridSelectionChange}
           rangeSelect={rangeSelect}
           rowSelect={rowSelect}
           rowSelectionMode={rowSelectionMode}
           provideEditor={provideEditor}
+          drawCell={drawCell}
+          drawHeader={drawHeader}
           onHeaderMenuClick={onHeaderMenuClick}
           rowHeight={35}
           headerHeight={headerHeightPx}
@@ -318,6 +329,7 @@ export function DataGridWrapper<T extends { id: number }>({
             return true
           }}
           freezeColumns={freezeColumnsCount}
+          freezeTrailingRows={freezeTrailingRows}
           smoothScrollX
           smoothScrollY
           overscrollX={160}
@@ -461,7 +473,7 @@ export function DataGridWrapper<T extends { id: number }>({
                                 ...prev,
                                 [colId as string]: opt.value,
                               }))
-                            }
+                          }
                           >
                             {opt.label}
                           </DropdownMenuItem>

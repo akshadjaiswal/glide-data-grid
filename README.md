@@ -32,8 +32,8 @@ Built from real-world requirements integrating Glide Data Grid into production a
 ### Grid Core
 - **Grouped headers** — columns organized into labeled groups (ID, Name, Info, Performance, Employment Data)
 - **Group accent bars** — 3px colored bar at bottom of each header, per group (via `drawHeader` callback)
-- **Frozen columns** — first 2 columns stay pinned while scrolling horizontally
-- **Row markers** — numbered checkboxes on both sides for multi-select
+- **Frozen columns** — first 2 columns stay pinned while scrolling horizontally (set via `freezeColumns={2}` in `employee-grid.tsx`; change there to adjust)
+- **Row markers** — numbered checkboxes on both sides; starts at 1; width auto-scales with row count (32–48px)
 - **Smooth scroll** — X + Y with overscroll gutter
 - **Column resizing** — persistent width adjustments
 - **Compact rows** — 35px rows for high data density
@@ -59,16 +59,19 @@ Built from real-world requirements integrating Glide Data Grid into production a
 - **Per-column aggregations** — click any footer cell to choose: Count, Sum, Average, Min, Max, Percent variants
 - **Auto type detection** — numeric vs non-numeric columns get appropriate calculation options
 - **Synchronized scrolling** — footer follows grid's horizontal scroll position exactly
+- **`excludeFooterColumns`** — columns can be excluded from aggregation; currently `['manager', 'tags']` (set in `employee-grid.tsx`)
 
 ### Custom Cell Types
-| Cell | Kind | Description |
-|---|---|---|
-| Tags | `'tags'` | Pill badges with deterministic vibrant colors; dark-mode aware |
-| Sparkline | `'sparkline'` | Canvas line chart with gradient fill; trend arrow (↑/↓) overdraw via `drawCell` |
-| Persona | `'persona'` | Circular avatar (Unsplash) + manager name |
-| Title Dropdown | `'title-dropdown'` | Colored rounded pill; opens overlay picker on double-click |
-| Text / URI | built-in | Editable text and clickable links (`onClickUri` for mailto: + external URLs) |
-| Boolean | built-in | Toggle checkbox for opt-in field |
+| Cell | Kind | `copyData` | Description |
+|---|---|---|---|
+| Tags | `'tags'` | comma-joined tags | Pill badges with deterministic vibrant colors; dark-mode aware |
+| Sparkline | `'sparkline'` | comma-joined values (2dp) | Canvas line chart with gradient fill; trend arrow (↑/↓) overdraw via `drawCell` |
+| Persona | `'persona'` | manager name string | Circular avatar (Unsplash) + manager name |
+| Title Dropdown | `'title-dropdown'` | title value string | Colored rounded pill; opens overlay picker on double-click |
+| Text / URI | built-in | mirrors `data` | Editable text and clickable links (`onClickUri` for mailto: + external URLs) |
+| Boolean | built-in | — | Toggle checkbox for opt-in field |
+
+All custom cells must set `copyData` — this is what lands on the clipboard when the user copies a selection.
 
 ### Canvas Overdraw
 - **Trend arrows** on sparkline cells: ↑ green (`#10B981`) or ↓ red (`#EF4444`) in top-right corner, based on first-to-last performance delta
@@ -199,6 +202,32 @@ Both passed to `DataGridWrapper` which threads them to `DataEditor`.
 ### Dropdown Editor (Title column)
 `title` is a `GridCellKind.Custom` cell with `kind: 'title-dropdown'`. `titleDropdownRenderer` draws the value as a colored rounded pill on canvas. `createDropdownEditor(TITLE_OPTIONS, 'title-dropdown', 'value')` provides the overlay editor. `onCellEdit` handles the custom kind and extracts `data.value`.
 
+### Grid Dimensions
+All row/header heights are hardcoded in `data-grid-wrapper.tsx` — change there if you adjust font sizes:
+
+| Constant | Value | Location |
+|---|---|---|
+| `rowHeight` | 35px | `data-grid-wrapper.tsx` |
+| `headerHeight` | 40px | `data-grid-wrapper.tsx` |
+| `groupHeaderHeight` | 32px | `data-grid-wrapper.tsx` |
+| `freezeColumns` | 2 | `employee-grid.tsx` (passed as prop) |
+
+Row marker column width auto-scales: `>10000 rows → 48px`, `>1000 → 44px`, `>100 → 36px`, else `32px`.
+
+### Column Icons
+Each column has a distinct `GridColumnIcon` assigned in `employee-grid-config.ts`:
+
+| Column | Icon |
+|---|---|
+| email | `HeaderEmail` |
+| firstName, lastName, title | `HeaderString` |
+| optIn | `HeaderBoolean` |
+| website | `HeaderUri` |
+| performance | `HeaderNumber` |
+| tags | `HeaderArray` |
+| manager | `HeaderImage` |
+| hiredAt | `HeaderDate` |
+
 ### Theming
 `lib/grid-theme.ts` defines `gridLightTheme` and `gridDarkTheme` as `Partial<Theme>`. Merged with Glide's `getDefaultTheme()` inside `useDataGrid`, then passed through `realizeThemeFonts()` which builds fully-formed font strings required for canvas rendering.
 
@@ -210,8 +239,11 @@ Both passed to `DataGridWrapper` which threads them to `DataEditor`.
 
 - **Columns** — `components/employee-grid-config.ts`: order, widths, editable flags, groups, icons, hasMenu/menuIcon
 - **Theme colors** — `lib/grid-theme.ts`: font sizes, padding, colors. Must be concrete values (no CSS variables)
+- **Row/header heights** — `data-grid-wrapper.tsx`: change `rowHeight` (35), `headerHeight` (40), `groupHeaderHeight` (32) constants
+- **Frozen columns** — `employee-grid.tsx`: change `freezeColumns={2}` prop on `DataGridWrapper`
+- **Footer exclusions** — `employee-grid.tsx`: change `excludeFooterColumns={['manager', 'tags']}` to include/exclude any column IDs
 - **Data** — `lib/data/employees.ts`: swap `buildEmployees` with your own fetch; update `getCellContent` in `use-employee-grid.ts` to match your type
-- **Custom cells** — extend `use-employee-grid.ts` + add a renderer in `employee-grid.tsx`; register in `customRenderers` array
+- **Custom cells** — extend `use-employee-grid.ts` + add a renderer in `employee-grid.tsx`; register in `customRenderers` array; always set `copyData`
 - **Dropdown editing** — use `createDropdownEditor` factory and pass result as `provideEditor` to `DataGridWrapper`
 - **Canvas overdraw** — add `drawCell` and/or `drawHeader` callbacks and pass to `DataGridWrapper`
 - **Context menu** — extend the context menu in `employee-grid.tsx` with additional actions

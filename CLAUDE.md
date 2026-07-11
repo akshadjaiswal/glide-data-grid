@@ -11,7 +11,7 @@ cd glide-ui
 npm install       # install deps (Node 18+ required)
 npm run dev       # start dev server at http://localhost:3000
 npm run build     # production build
-npm run lint      # ESLint via Next.js (requires ESLint config — not yet initialized)
+npm run lint      # ESLint via Next.js
 ```
 
 No environment variables are required — all data is in-memory dummy data.
@@ -54,6 +54,11 @@ The architecture separates concerns into three layers:
   - `drawHeader` prop for custom column header rendering (passed to `DataEditor`)
   - `onCellContextMenu` prop for right-click context menus
   - `freezeTrailingRows` prop to pin trailing rows
+  - `excludeFooterColumns` prop — list of column IDs to skip in the footer aggregation bar (currently `['manager', 'tags']` from `employee-grid.tsx`)
+  - `freezeColumns` prop — number of columns to pin left (default `2`; hardcoded as `freezeColumns={2}` in `employee-grid.tsx`)
+  - `rowMarkerTheme` — transparent borders applied internally so row marker lines don't double-up with grid borders
+  - Row marker width is calculated dynamically from row count: `>10000→48px`, `>1000→44px`, `>100→36px`, else `32px`
+  - Grid dimension constants (hardcoded in `data-grid-wrapper.tsx`): `rowHeight=35`, `headerHeight=40`, `groupHeaderHeight=32`
 - `components/employee-grid.tsx` — UI layer that composes `DataGridWrapper` with employee-specific logic.
 
 ### Toolbar Features (employee-grid.tsx)
@@ -117,6 +122,12 @@ All renderers implement `CustomRenderer<T>` from Glide and must use canvas APIs:
 | Title dropdown pill | inline in `components/employee-grid.tsx` | `'title-dropdown'` |
 
 Custom renderers **must** leave a 1px gutter when filling `cellFillColor`: `ctx.fillRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)`. This preserves grid border lines.
+
+All 4 custom cells must set `copyData` (a plain string) for correct clipboard behavior:
+- `'sparkline'` — comma-joined values: `values.map(v => v.toFixed(2)).join(', ')`
+- `'tags'` — comma-joined tags: `tags.join(', ')`
+- `'persona'` — manager name string
+- `'title-dropdown'` — the title string value
 
 Tags renderer detects dark mode by inspecting `theme.bgCell === '#09090B'`. Tag colors come from `lib/tag-colors.ts`.
 

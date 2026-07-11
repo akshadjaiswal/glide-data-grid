@@ -300,6 +300,42 @@ Add/delete rows
 - Replace blankEmployee with your own initializer if needed.
 
 ----------------------------------------------------------------------
+Grid dimension constants
+All hardcoded in data-grid-wrapper.tsx — change there when adjusting font sizes:
+
+| Constant | Value | Effect if increased |
+|---|---|---|
+| rowHeight | 35px | More vertical space per row |
+| headerHeight | 40px | Taller column header |
+| groupHeaderHeight | 32px | Taller group header row |
+
+freezeColumns defaults to 2 inside DataGridWrapper but is passed explicitly as freezeColumns={2} from employee-grid.tsx — change the call site, not the default.
+
+Row marker column width is calculated dynamically in DataGridWrapper:
+- rows > 10000 → 48px
+- rows > 1000  → 44px
+- rows > 100   → 36px
+- else         → 32px
+
+rowMarkerStartIndex={1} is hardcoded — row numbers display starting at 1, not 0.
+
+rowMarkerTheme sets all marker borders to transparent to avoid double lines with the grid's own cell borders:
+```typescript
+{ borderColor: 'transparent', horizontalBorderColor: 'transparent', drilldownBorder: 'transparent' }
+```
+
+----------------------------------------------------------------------
+Footer column exclusions (excludeFooterColumns)
+DataGridWrapper accepts excludeFooterColumns?: string[] — column IDs that should be skipped in the footer aggregation bar (no dropdown rendered, just empty space).
+
+Currently set in employee-grid.tsx:
+```typescript
+excludeFooterColumns={['manager', 'tags']}
+```
+
+Exclude any column that has no meaningful aggregation (custom cells, image-based cells, etc.). Add column IDs to this list; remove them to re-enable aggregations.
+
+----------------------------------------------------------------------
 Columns and grouping
 - Defined in employee-grid-config.ts with id/title/group/width/icon/hasMenu/menuIcon/grow.
 - All 10 columns have hasMenu: true + menuIcon: GridColumnMenuIcon.Dots.
@@ -338,8 +374,17 @@ const titleDropdownRenderer: CustomRenderer<TitleDropdownCell> = {
 ----------------------------------------------------------------------
 Copy-friendly selection
 - getCellsForSelection assembles a 2D array of cells for multi-cell copy.
-- Ensure custom cells set copyData (tags join(', '), persona name, sparkline values formatted, title value).
 - Without getCellsForSelection, multi-cell copy/paste won't behave as expected.
+- Every custom cell MUST set copyData (a plain string). Current implementations:
+
+| Cell kind | copyData value |
+|---|---|
+| `'sparkline'` | `values.map(v => v.toFixed(2)).join(', ')` |
+| `'tags'` | `tags.join(', ')` |
+| `'persona'` | `rowData.manager.name` |
+| `'title-dropdown'` | `rowData.title` (string value) |
+
+If copyData is missing, the clipboard will be empty or Glide will fall back to empty string.
 
 ----------------------------------------------------------------------
 Minimal embed steps (checklist)
